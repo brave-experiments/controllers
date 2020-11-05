@@ -92,9 +92,16 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     return gasPrice.toHexString();
   }
 
+  /**
+   * Find best quote and ETH values, all quotes fees and all quotes trade values
+   *
+   * @param quotes - Array of quotes
+   * @param customGasPrice - If defined, custom gas price used
+   * @returns - Promise resolving to the best quote object and ETH values from quotes
+   */
   private async getBestQuoteAndEthValues(
     quotes: SwapsQuotes,
-    customGasPrice: string,
+    customGasPrice: string | null,
   ): Promise<SwapsBestQuoteAndSwapValues> {
     const tokenRatesController = this.context.TokenRatesController as TokenRatesController;
     const { contractExchangeRates } = tokenRatesController.state;
@@ -173,9 +180,10 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
   }
 
   /**
-   * Find best quote and savings from specific quotes
+   * Calculate savings from quotes
    *
    * @param quotes - Quotes to do the calculation
+   * @param values - Swaps ETH values, all quotes fees and all quotes trade values
    * @returns - Promise resolving to an object containing best aggregator id and respective savings
    */
   private async calculateSavings(quote: SwapsBestQuote, values: SwapValues): Promise<SwapsSavings> {
@@ -198,11 +206,12 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
    * Find best quote and savings from specific quotes
    *
    * @param quotes - Quotes to do the calculation
+   * @param customGasPrice - If defined, custom gas price used
    * @returns - Promise resolving to an object containing best aggregator id and respective savings
    */
   private async findBestQuoteAndCalulateSavings(
     quotes: SwapsQuotes,
-    customGasPrice: string,
+    customGasPrice: string | null,
   ): Promise<SwapsBestQuoteAndSavings | null> {
     const numQuotes = Object.keys(quotes).length;
     if (!numQuotes) {
@@ -220,7 +229,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
    *
    * @param contractAddress - Hex address of the ERC20 contract
    * @param walletAddress - Hex address of the wallet
-   * @returns
+   * @returns - Promise resolving to allowance number
    */
   private async getERC20Allowance(contractAddress: string, walletAddress: string): Promise<number> {
     const contract = this.web3.eth.contract(abiERC20).at(contractAddress);
