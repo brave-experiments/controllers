@@ -39,6 +39,22 @@ interface SwapsBestQuote {
   topAggId: string;
   ethTradeValueOfBestQuote: BigNumber;
   ethFeeForBestQuote: BigNumber;
+  isBest: boolean;
+}
+
+interface SwapValues {
+  allEthTradeValues: BigNumber[];
+  allEthFees: BigNumber[];
+}
+
+interface SwapsBestQuoteAndSwapValues {
+  bestQuote: SwapsBestQuote;
+  values: SwapValues;
+}
+
+interface SwapsBestQuoteAndSavings {
+  bestQuote: SwapsBestQuote;
+  savings: SwapsSavings;
 }
 
 export interface SwapsState extends BaseState {
@@ -71,7 +87,10 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     return gasPrice.toHexString();
   }
 
-  private async getBestQuote(quotes: SwapsQuotes, customGasPrice: string): Promise<SwapsBestQuote> {
+  private async getBestQuoteAndEthValues(
+    quotes: SwapsQuotes,
+    customGasPrice: string,
+  ): Promise<SwapsBestQuoteAndSwapValues> {
     const tokenRatesController = this.context.TokenRatesController as TokenRatesController;
     const { contractExchangeRates } = tokenRatesController.state;
 
@@ -83,8 +102,8 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     let ethFeeForBestQuote: BigNumber = new BigNumber(0);
 
     const usedGasPrice = customGasPrice || (await this.getGasPrice());
-
-    Object.values(quotes).forEach((quote) => {
+    const quotesValues = Object.values(quotes).map((quote) => quote);
+    quotesValues.forEach((quote) => {
       const {
         aggregator,
         approvalNeeded,
@@ -124,13 +143,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
         destinationToken === ETH_SWAPS_TOKEN_ADDRESS
           ? calcTokenAmount(destinationAmount, 18).minus(totalWeiCost, 10)
           : new BigNumber(tokenConversionRate || 1, 10)
-              .times(
-                calcTokenAmount(
-                  destinationAmount,
-                  destinationTokenInfo.decimals,
-                ),
-                10,
-              )
+              .times(calcTokenAmount(destinationAmount, destinationTokenInfo.decimals), 10)
               .minus(tokenConversionRate ? totalWeiCost : 0, 10);
 
       // collect values for savings calculation
@@ -144,7 +157,14 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
       }
     });
 
-    return { topAggId, ethTradeValueOfBestQuote, ethFeeForBestQuote };
+    const isBest =
+      quotes[topAggId].destinationToken === ETH_SWAPS_TOKEN_ADDRESS ||
+      Boolean(contractExchangeRates[quotes[topAggId]?.destinationToken]);
+
+    return {
+      bestQuote: { topAggId, isBest, ethTradeValueOfBestQuote, ethFeeForBestQuote },
+      values: { allEthTradeValues, allEthFees },
+    };
   }
 
   /**
@@ -153,44 +173,41 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
    * @param quotes - Quotes to do the calculation
    * @returns - Promise resolving to an object containing best aggregator id and respective savings
    */
-  private async findTopQuoteAndCalculateSavings(quotes: SwapsQuotes, customGasPrice: string): Promise<Object> {
-    const tokenRatesController = this.context.TokenRatesController as TokenRatesController;
-    const { contractExchangeRates } = tokenRatesController.state;
+  private async calculateSavings(quote: SwapsBestQuote, values: SwapValues): Promise<SwapsSavings> {
+    const savings: SwapsSavings = { fee: new BigNumber(0), total: new BigNumber(0), performance: new BigNumber(0) };
+    // Performance savings are calculated as:
+    //   valueForBestTrade - medianValueOfAllTrades
+    savings.performance = quote.ethTradeValueOfBestQuote.minus(getMedian(values.allEthTradeValues), 10);
 
+    // Performance savings are calculated as:
+    //   medianFeeOfAllTrades - feeForBestTrade
+    savings.fee = getMedian(values.allEthFees).minus(quote.ethFeeForBestQuote, 10);
+
+    // Total savings are the sum of performance and fee savings
+    savings.total = savings.performance.plus(savings.fee, 10);
+
+    return savings;
+  }
+
+  /**
+   * Find best quote and savings from specific quotes
+   *
+   * @param quotes - Quotes to do the calculation
+   * @returns - Promise resolving to an object containing best aggregator id and respective savings
+   */
+  private async findBestQuoteAndCalulateSavings(
+    quotes: SwapsQuotes,
+    customGasPrice: string,
+  ): Promise<SwapsBestQuoteAndSavings | null> {
     const numQuotes = Object.keys(quotes).length;
     if (!numQuotes) {
-      return {};
+      return null;
     }
 
-    const bestQuote = await this.getBestQuote(quotes, customGasPrice);
+    const { bestQuote, values } = await this.getBestQuoteAndEthValues(quotes, customGasPrice);
+    const savings = await this.calculateSavings(bestQuote, values);
 
-    const allEthTradeValues: BigNumber[] = [];
-    const allEthFees: BigNumber[] = [];
-
-    const isBest =
-      quotes[bestQuote.topAggId].destinationToken === ETH_SWAPS_TOKEN_ADDRESS ||
-      Boolean(contractExchangeRates[quotes[bestQuote.topAggId]?.destinationToken]);
-
-    const savings: SwapsSavings = { fee: new BigNumber(0), total: new BigNumber(0), performance: new BigNumber(0) };
-
-    if (isBest) {
-      // Performance savings are calculated as:
-      //   valueForBestTrade - medianValueOfAllTrades
-      savings.performance = bestQuote.ethTradeValueOfBestQuote.minus(
-        getMedian(allEthTradeValues),
-        10,
-      );
-
-      // Performance savings are calculated as:
-      //   medianFeeOfAllTrades - feeForBestTrade
-      savings.fee = getMedian(allEthFees).minus(bestQuote.ethFeeForBestQuote, 10);
-
-      // Total savings are the sum of performance and fee savings
-      savings.total = savings.performance.plus(savings.fee, 10);
-      savings.performance = savings.performance;
-    }
-
-    return { topAggId: bestQuote.topAggId, isBest, savings };
+    return { bestQuote, savings };
   }
 
   /**
@@ -307,7 +324,12 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     this.handle && clearTimeout(this.handle);
   }
 
-  async fetchAndSetQuotes(fetchParams: null | Record<string, any>, fetchParamsMetaData: Object, isPolledRequest: boolean, customGasPrice?: string) {
+  async fetchAndSetQuotes(
+    fetchParams: null | Record<string, any>,
+    fetchParamsMetaData: Object,
+    isPolledRequest: boolean,
+    customGasPrice?: string,
+  ) {
     if (!fetchParams) {
       return null;
     }
@@ -341,7 +363,11 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
   }
 
   resetPostFetchState() {
-    const { tokens: resetTokens, fetchParams: resetFetchParams, swapsFeatureIsLive: resetSwapsFeatureIsLive } = this.state;
+    const {
+      tokens: resetTokens,
+      fetchParams: resetFetchParams,
+      swapsFeatureIsLive: resetSwapsFeatureIsLive,
+    } = this.state;
     this.update({
       ...this.state,
       tokens: resetTokens,
