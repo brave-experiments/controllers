@@ -5,6 +5,9 @@ import TokenRatesController from '../assets/TokenRatesController';
 import { calcTokenAmount } from '../util';
 import { getMedian, SwapsError } from './SwapsUtil';
 
+const Web3 = require('web3');
+const abiERC20 = require('human-standard-token-abi');
+
 const EthQuery = require('eth-query');
 
 const METASWAP_ADDRESS = '0x881d40237659c251811cec9c364ef91dc08d300c';
@@ -73,6 +76,8 @@ const MAX_GAS_LIMIT = 2500000;
 
 export default class SwapsController extends BaseController<SwapsConfig, SwapsState> {
   private handle?: NodeJS.Timer;
+
+  private web3: any;
 
   private ethQuery: any;
   // private pollCount?: number;
@@ -213,13 +218,23 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
   /**
    * Get current allowance for a wallet address to access ERC20 contract address funds
    *
-   * @param _contractAddress - Hex address of the ERC20 contract
-   * @param _walletAddress - Hex address of the wallet
+   * @param contractAddress - Hex address of the ERC20 contract
+   * @param walletAddress - Hex address of the wallet
    * @returns
    */
-  // private async getERC20Allowance (_contractAddress: string, _walletAddress: string): Promise<number> {
-  //   return 0
-  // }
+  private async getERC20Allowance(contractAddress: string, walletAddress: string): Promise<number> {
+    const contract = this.web3.eth.contract(abiERC20).at(contractAddress);
+    return new Promise<number>((resolve, reject) => {
+      contract.allowance(walletAddress, (error: Error, result: number) => {
+        /* istanbul ignore if */
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(result);
+      });
+    });
+  }
 
   private query(method: string, args: any[] = []): Promise<any> {
     return new Promise((resolve, reject) => {
@@ -232,12 +247,6 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
       });
     });
   }
-
-  // private _setupSwapsLivenessFetching () {}
-
-  // private async _fetchAndSetSwapsLiveness () {}
-
-  // private async _modifyValuesForMaxEthMode (newQuotes, accountBalance) {}
 
   /**
    * Name of this controller used during composition
@@ -282,7 +291,10 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     super.onComposed();
     const network = this.context.NetworkController as NetworkController;
     const onProviderUpdate = () => {
-      this.ethQuery = network.provider ? new EthQuery(network.provider) : /* istanbul ignore next */ null;
+      if (network.provider) {
+        this.ethQuery = new EthQuery(network.provider);
+        this.web3 = new Web3(network.provider);
+      }
     };
     onProviderUpdate();
     network.subscribe(onProviderUpdate);
