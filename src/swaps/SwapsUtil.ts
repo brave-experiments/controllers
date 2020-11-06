@@ -1,4 +1,5 @@
 import BigNumber from 'bignumber.js';
+import { Transaction } from '../transaction/TransactionController';
 import { handleFetch, timeoutFetch, constructTxParams, BNToHex } from '../util';
 
 export enum SwapsError {
@@ -42,15 +43,8 @@ interface APIToken extends APIAsset {
   iconUrl?: string;
 }
 
-interface APITrade {
-  trade: null | {
-    data: string;
-    to: string;
-    from: string;
-    value: string;
-    gas: number;
-  };
-
+export interface APITrade {
+  trade: Transaction;
   approvalNeeded: null | {
     data: string;
     to: string;
@@ -70,13 +64,30 @@ interface APITrade {
   fee: number;
   gasMultiplier?: number;
 }
+
+interface APIAggregatorTradesResponse {
+  [key: string]: APITrade;
+}
+
 interface APIAggregatorMetadataResponse {
   [key: string]: APIAggregatorMetadata;
 }
+
 interface APIAggregatorMetadata {
   color: string;
   title: string;
   icon: string;
+}
+
+export interface APITradeParams {
+  slippage: number;
+  sourceToken: string;
+  sourceAmount: string;
+  destinationToken: string;
+  fromAddress: string;
+  exchangeList?: string[];
+  //
+  metaData?: Record<string, any>;
 }
 
 // Constants
@@ -124,14 +135,8 @@ export async function fetchTradesInfo({
   destinationToken,
   fromAddress,
   exchangeList,
-}: {
-  slippage: number;
-  sourceToken: string;
-  sourceAmount: string;
-  destinationToken: string;
-  fromAddress: string;
-  exchangeList?: string[];
-}): Promise<Record<string, APITrade>> {
+}: APITradeParams): Promise<Record<string, APITrade>> {
+
   const urlParams: APITradeRequest = {
     destinationToken,
     sourceToken,
@@ -148,7 +153,7 @@ export async function fetchTradesInfo({
   const tradeURL = `${getBaseApiURL(APIType.TRADES)}?${new URLSearchParams(urlParams as Record<any, any>).toString()}`;
   const tradesResponse = (await timeoutFetch(tradeURL, { method: 'GET' }, 15000)) as APITrade[];
 
-  const newQuotes = tradesResponse.reduce((aggIdTradeMap: Record<string, APITrade>, quote: APITrade) => {
+  const newQuotes = tradesResponse.reduce((aggIdTradeMap: APIAggregatorTradesResponse, quote: APITrade) => {
     if (quote.trade && !quote.error) {
       const constructedTrade = constructTxParams({
         to: quote.trade.to,
