@@ -65,7 +65,7 @@ export interface Transaction {
   gas?: string;
   gasPrice?: string;
   nonce?: string;
-  to: string;
+  to?: string;
   value?: string;
 }
 

@@ -491,6 +491,72 @@ export function calcTokenAmount(value: number, decimals: number) {
   return new BigNumber(String(value)).div(multiplier);
 }
 
+/**
+ * Query format using current provided eth query object
+ * @param method - Method to query
+ * @param ethQuery - EthQuery object
+ * @param args - Conveninent arguments to execute the query
+ * @returns - Promise resolving to the respective result
+ */
+export async function query(method: string, ethQuery: any, args: any[] = []): Promise<any> {
+  return new Promise((resolve, reject) => {
+    ethQuery[method](...args, (error: Error, result: any) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(result);
+    });
+  });
+}
+
+/**
+ * Estimates required gas for a given transaction
+ *
+ * @param transaction - Transaction object to estimate gas for
+ * @returns - Promise resolving to an object containing gas and gasPrice
+ */
+export async function estimateGas(transaction: Transaction, ethQuery: any) {
+    const estimatedTransaction = { ...transaction };
+    const { gasLimit } = await query('getBlockByNumber', ethQuery, ['latest']);
+    const { gas, gasPrice: providedGasPrice, to, value, data } = estimatedTransaction;
+    const gasPrice = typeof providedGasPrice === 'undefined' ? await query('gasPrice', ethQuery) : providedGasPrice;
+
+    // 1. If gas is already defined on the transaction, use it
+    if (typeof gas !== 'undefined') {
+      return { gas, gasPrice };
+    }
+
+    // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000
+    /* istanbul ignore next */
+    const code = to ? await query('getCode', ethQuery, [to]) : undefined;
+    /* istanbul ignore next */
+    if (!to || (to && !data && (!code || code === '0x'))) {
+      return { gas: '0x5208', gasPrice };
+    }
+    // if data, should be hex string format
+    estimatedTransaction.data = !data ? data : /* istanbul ignore next */ addHexPrefix(data);
+    // 3. If this is a contract address, safely estimate gas using RPC
+    estimatedTransaction.value = typeof value === 'undefined' ? '0x0' : /* istanbul ignore next */ value;
+    const gasLimitBN = hexToBN(gasLimit);
+    estimatedTransaction.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
+    const gasHex = await query('estimateGas', ethQuery, [estimatedTransaction]);
+
+    // 4. Pad estimated gas without exceeding the most recent block gasLimit
+    const gasBN = hexToBN(gasHex);
+    const maxGasBN = gasLimitBN.muln(0.9);
+    const paddedGasBN = gasBN.muln(1.5);
+    /* istanbul ignore next */
+    if (gasBN.gt(maxGasBN)) {
+      return { gas: addHexPrefix(gasHex), gasPrice };
+    }
+    /* istanbul ignore next */
+    if (paddedGasBN.lt(maxGasBN)) {
+      return { gas: addHexPrefix(BNToHex(paddedGasBN)), gasPrice };
+    }
+    return { gas: addHexPrefix(BNToHex(maxGasBN)), gasPrice };
+  }
+
 export default {
   BNToHex,
   fractionBN,
@@ -509,4 +575,6 @@ export default {
   validateTypedSignMessageDataV1,
   validateTypedSignMessageDataV3,
   calcTokenAmount,
+  estimateGas,
+  query,
 };

@@ -1,96 +1,6 @@
 import BigNumber from 'bignumber.js';
-import { Transaction } from '../transaction/TransactionController';
 import { handleFetch, timeoutFetch, constructTxParams, BNToHex } from '../util';
-
-export enum SwapsError {
-  QUOTES_EXPIRED_ERROR = 'quotes-expired',
-  SWAP_FAILED_ERROR = 'swap-failed-error',
-  ERROR_FETCHING_QUOTES = 'error-fetching-quotes',
-  QUOTES_NOT_AVAILABLE_ERROR = 'quotes-not-avilable',
-  OFFLINE_FOR_MAINTENANCE = 'offline-for-maintenance',
-  SWAPS_FETCH_ORDER_CONFLICT = 'swaps-fetch-order-conflict',
-}
-
-export enum APIType {
-  TRADES = 'TRADES',
-  TOKENS = 'TOKENS',
-  TOP_ASSETS = 'TOP_ASSETS',
-  FEATURE_FLAG = 'FEATURE_FLAG',
-  AGGREGATOR_METADATA = 'AGGREGATOR_METADATA',
-}
-
-interface APITradeRequest {
-  sourceToken: string;
-  destinationToken: string;
-  sourceAmount: string;
-  slippage: number;
-  excludeFees?: boolean;
-  txOriginAddress?: string;
-  timeout: number;
-  walletAddress: string;
-  exchangeList?: null | string[];
-}
-
-interface APIAsset {
-  address: string;
-  symbol: string;
-  name?: string;
-}
-
-interface APIToken extends APIAsset {
-  decimals: number;
-  occurances?: number;
-  iconUrl?: string;
-}
-
-export interface APITrade {
-  trade: Transaction;
-  approvalNeeded: null | {
-    data: string;
-    to: string;
-    from: string;
-  };
-  sourceAmount: string;
-  destinationAmount: string;
-  error: null | Error;
-  sourceToken: string;
-  destinationToken: string;
-  maxGas: number;
-  averageGas: number;
-  estimatedRefund: number;
-  fetchTime: number;
-  aggregator: string;
-  aggType: string;
-  fee: number;
-  gasMultiplier?: number;
-}
-
-interface APIAggregatorTradesResponse {
-  [key: string]: APITrade;
-}
-
-interface APIAggregatorMetadataResponse {
-  [key: string]: APIAggregatorMetadata;
-}
-
-interface APIAggregatorMetadata {
-  color: string;
-  title: string;
-  icon: string;
-}
-
-export interface APITradeParams {
-  slippage: number;
-  sourceToken: string;
-  sourceAmount: string;
-  destinationToken: string;
-  fromAddress: string;
-  exchangeList?: string[];
-  //
-  metaData?: Record<string, any>;
-}
-
-// Constants
+import { APIAggregatorMetadataResponse, APIAggregatorTradesResponse, APIAsset, APIToken, APITrade, APITradeParams, APITradeRequest, APIType } from './SwapsInterfaces';
 
 export const ETH_SWAPS_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
 
@@ -227,35 +137,6 @@ export async function fetchTokenPrice(address: string): Promise<string> {
 
   return prices && prices[address]?.eth;
 }
-
-// export function getRenderableNetworkFeesForQuote(
-//   tradeGas,
-//   approveGas,
-//   gasPrice,
-//   currentCurrency,
-//   conversionRate,
-//   tradeValue,
-//   sourceSymbol,
-//   sourceAmount,
-// ) {}
-
-// export function quotesToRenderableData(
-//   quotes,
-//   gasPrice,
-//   conversionRate,
-//   currentCurrency,
-//   approveGas,
-//   tokenConversionRates,
-// ) {}
-
-// export function getSwapsTokensReceivedFromTxMeta(
-//   tokenSymbol,
-//   txMeta,
-//   tokenAddress,
-//   accountAddress,
-//   tokenDecimals,
-//   approvalTxMeta,
-// ) {}
 
 export function calculateGasEstimateWithRefund(
   maxGas = MAX_GAS_LIMIT,

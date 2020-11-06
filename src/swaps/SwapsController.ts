@@ -1,11 +1,11 @@
 import BigNumber from 'bignumber.js';
-import { addHexPrefix } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import NetworkController from '../network/NetworkController';
 import TokenRatesController from '../assets/TokenRatesController';
-import { BNToHex, calcTokenAmount, fractionBN, hexToBN } from '../util';
+import { calcTokenAmount, estimateGas, query } from '../util';
 import { Transaction } from '../transaction/TransactionController';
-import { fetchTradesInfo, getMedian, SwapsError, APITrade, APITradeParams } from './SwapsUtil';
+import { fetchTradesInfo, getMedian } from './SwapsUtil';
+import { APITradeParams, SwapsBestQuote, SwapsBestQuoteAndSavings, SwapsBestQuoteAndSwapValues, SwapsError, SwapsQuotes, SwapsSavings, SwapsTokenObject, SwapValues } from './SwapsInterfaces';
 
 const Web3 = require('web3');
 const abiERC20 = require('human-standard-token-abi');
@@ -17,50 +17,10 @@ const METASWAP_ADDRESS = '0x881d40237659c251811cec9c364ef91dc08d300c';
 // An address that the metaswap-api recognizes as ETH, in place of the token address that ERC-20 tokens have
 export const ETH_SWAPS_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-export interface SwapsTokenObject {
-  address: string;
-  symbol: string;
-  decimals: number;
-  occurances?: number;
-  iconUrl?: string;
-}
-
 export interface SwapsConfig extends BaseConfig {
   maxGasLimit: number;
   pollCountLimit: number;
   metaSwapAddress: string;
-}
-
-interface SwapsQuotes {
-  [key: string]: APITrade;
-}
-
-interface SwapsSavings {
-  total: BigNumber;
-  performance: BigNumber;
-  fee: BigNumber;
-}
-
-interface SwapsBestQuote {
-  topAggId: string;
-  ethTradeValueOfBestQuote: BigNumber;
-  ethFeeForBestQuote: BigNumber;
-  isBest: boolean;
-}
-
-interface SwapValues {
-  allEthTradeValues: BigNumber[];
-  allEthFees: BigNumber[];
-}
-
-interface SwapsBestQuoteAndSwapValues {
-  bestQuote: SwapsBestQuote;
-  values: SwapValues;
-}
-
-interface SwapsBestQuoteAndSavings {
-  bestQuote: SwapsBestQuote;
-  savings: SwapsSavings;
 }
 
 export interface SwapsState extends BaseState {
@@ -94,7 +54,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
    * @returns - Promise resolving to the current gas price
    */
   private async getGasPrice(): Promise<string> {
-    const gasPrice = await this.query('gasPrice');
+    const gasPrice = await query('gasPrice', this.ethQuery);
     return gasPrice.toHexString();
   }
 
@@ -251,65 +211,6 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     });
   }
 
-  private query(method: string, args: any[] = []): Promise<any> {
-    return new Promise((resolve, reject) => {
-      this.ethQuery[method](...args, (error: Error, result: any) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
-  }
-
-  /**
-   * Estimates required gas for a given transaction
-   *
-   * @param transaction - Transaction object to estimate gas for
-   * @returns - Promise resolving to an object containing gas and gasPrice
-   */
-  private async estimateGas(transaction: Transaction) {
-    const estimatedTransaction = { ...transaction };
-    const { gasLimit } = await this.query('getBlockByNumber', ['latest', false]);
-    const { gas, gasPrice: providedGasPrice, to, value, data } = estimatedTransaction;
-    const gasPrice = typeof providedGasPrice === 'undefined' ? await this.query('gasPrice') : providedGasPrice;
-
-    // 1. If gas is already defined on the transaction, use it
-    if (typeof gas !== 'undefined') {
-      return { gas, gasPrice };
-    }
-
-    // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000
-    /* istanbul ignore next */
-    const code = to ? await this.query('getCode', [to]) : undefined;
-    /* istanbul ignore next */
-    if (!to || (to && !data && (!code || code === '0x'))) {
-      return { gas: '0x5208', gasPrice };
-    }
-    // if data, should be hex string format
-    estimatedTransaction.data = !data ? data : /* istanbul ignore next */ addHexPrefix(data);
-    // 3. If this is a contract address, safely estimate gas using RPC
-    estimatedTransaction.value = typeof value === 'undefined' ? '0x0' : /* istanbul ignore next */ value;
-    const gasLimitBN = hexToBN(gasLimit);
-    estimatedTransaction.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
-    const gasHex = await this.query('estimateGas', [estimatedTransaction]);
-
-    // 4. Pad estimated gas without exceeding the most recent block gasLimit
-    const gasBN = hexToBN(gasHex);
-    const maxGasBN = gasLimitBN.muln(0.9);
-    const paddedGasBN = gasBN.muln(1.5);
-    /* istanbul ignore next */
-    if (gasBN.gt(maxGasBN)) {
-      return { gas: addHexPrefix(gasHex), gasPrice };
-    }
-    /* istanbul ignore next */
-    if (paddedGasBN.lt(maxGasBN)) {
-      return { gas: addHexPrefix(BNToHex(paddedGasBN)), gasPrice };
-    }
-    return { gas: addHexPrefix(BNToHex(maxGasBN)), gasPrice };
-  }
-
   private timedoutGasReturn(tradeTxParams: Transaction | null): Promise<{ gas: string | null }> {
     if (!tradeTxParams) {
       return new Promise((resolve) => {
@@ -331,7 +232,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
         value: tradeTxParams.value,
       };
 
-      return Promise.race([this.estimateGas(tradeTxParamsForGasEstimate), gasTimeout]);
+      return Promise.race([estimateGas(tradeTxParamsForGasEstimate, query), gasTimeout]);
     });
   }
 
@@ -578,26 +479,4 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     });
     this.handle && clearTimeout(this.handle);
   }
-
-  // resetSwapsState () {}
-
-  // timedoutGasReturn (tradeTxParams) {}
-
-  // setSelectedQuoteAggId (selectedAggId) () {}
-
-  // async setInitialGasEstimate (initialAggId, baseGasEstimate) {}
-
-  // setApproveTxId (approveTxId) {}
-
-  // setTradeTxId (tradeTxId) {}
-
-  // setMaxMode (maxMode) {}
-
-  // setSwapsTxGasPrice (gasPrice) {}
-
-  // setSwapsTxGasLimit (gasLimit) {}
-
-  // setCustomApproveTxData (data) {}
-
-  // setBackgroundSwapRouteState (routeState) {}
 }
