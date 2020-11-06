@@ -5,12 +5,12 @@ import TokenRatesController from '../assets/TokenRatesController';
 import { calcTokenAmount, estimateGas, query } from '../util';
 import { Transaction } from '../transaction/TransactionController';
 import { fetchTradesInfo, getMedian } from './SwapsUtil';
-import { APITradeParams, SwapsBestQuote, SwapsBestQuoteAndSavings, SwapsBestQuoteAndSwapValues, SwapsError, SwapsQuotes, SwapsSavings, SwapsTokenObject, SwapValues } from './SwapsInterfaces';
+import { APITradeParams, SwapsBestQuote, SwapsBestQuoteAndSavings, SwapsBestQuoteAndSwapValues, SwapsError, SwapsQuoteParams, SwapsQuotes, SwapsSavings, SwapsTokenObject, SwapValues } from './SwapsInterfaces';
 
-const Web3 = require('web3');
 const abiERC20 = require('human-standard-token-abi');
 
 const EthQuery = require('eth-query');
+const Web3 = require('web3');
 
 const DEFAULT_ERC20_APPROVE_GAS = '0x1d4c0';
 const METASWAP_ADDRESS = '0x881d40237659c251811cec9c364ef91dc08d300c';
@@ -25,7 +25,7 @@ export interface SwapsConfig extends BaseConfig {
 
 export interface SwapsState extends BaseState {
   quotes: SwapsQuotes;
-  fetchParams: null | APITradeParams;
+  fetchParams: null | SwapsQuoteParams;
   tokens: null | SwapsTokenObject[];
   quotesLastFetched: null | number;
   errorKey: null | SwapsError;
@@ -327,15 +327,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
   }
 
   async fetchAndSetQuotes(
-    fetchParams: null | {
-      slippage: number;
-      sourceToken: string;
-      sourceAmount: string;
-      destinationToken: string;
-      fromAddress: string;
-      exchangeList?: string[];
-      balanceError?: string;
-    },
+    fetchParams: SwapsQuoteParams,
     fetchParamsMetaData: Record<string, any>,
     isPolledRequest: boolean,
     customGasPrice: string | null,

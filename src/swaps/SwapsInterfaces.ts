@@ -108,14 +108,18 @@ export interface APIAggregatorTradesResponse {
   [key: string]: APITrade;
 }
 
-export interface APIAggregatorMetadataResponse {
-  [key: string]: APIAggregatorMetadata;
-}
-
 export interface APIAggregatorMetadata {
   color: string;
   title: string;
   icon: string;
+}
+
+export interface APIAggregatorMetadataResponse {
+  [key: string]: APIAggregatorMetadata;
+}
+
+export interface SwapsQuoteParams extends APITradeParams {
+  metaData?: Record<string, any>;
 }
 
 export interface APITradeParams {
@@ -126,5 +130,4 @@ export interface APITradeParams {
   fromAddress: string;
   exchangeList?: string[];
   //
-  metaData?: Record<string, any>;
 }

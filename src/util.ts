@@ -202,7 +202,7 @@ export function constructTxParams({
 }: {
   sendToken?: boolean;
   data?: string;
-  to: string;
+  to?: string;
   from: string;
   gas?: string;
   gasPrice?: string;
