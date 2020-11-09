@@ -81,7 +81,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
    */
   private async getBestQuoteAndEthValues(
     quotes: APITradesMetadataWithGas,
-    customGasPrice: string | null,
+    customGasPrice?: string,
   ): Promise<SwapsBestQuoteAndSwapValues> {
     const tokenRatesController = this.context.TokenRatesController as TokenRatesController;
     const { contractExchangeRates } = tokenRatesController.state;
@@ -191,7 +191,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
    */
   private async findBestQuoteAndCalulateSavings(
     quotes: APITradesMetadataWithGas,
-    customGasPrice: string | null,
+    customGasPrice?: string,
   ): Promise<SwapsQuote | null> {
     const numQuotes = Object.keys(quotes).length;
     if (!numQuotes) {
@@ -331,10 +331,11 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
    *
    */
   pollForNewQuotes() {
+    const { fetchParams } = this.state;
     this.handle && clearTimeout(this.handle);
-    this.fetchAndSetQuotes(this.state.fetchParams, {}, true, null);
+    this.fetchAndSetQuotes(fetchParams, fetchParams?.metaData || {}, true);
     this.handle = setTimeout(() => {
-      this.fetchAndSetQuotes(this.state.fetchParams, {}, true, null);
+      this.fetchAndSetQuotes(fetchParams, fetchParams?.metaData || {}, true);
     }, QUOTE_POLLING_INTERVAL);
   }
 
@@ -381,8 +382,8 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
   async fetchAndSetQuotes(
     fetchParams: SwapsQuoteParams,
     fetchParamsMetaData: Record<string, any>,
-    isPolledRequest: boolean,
-    customGasPrice: string | null,
+    isPolledRequest?: boolean,
+    customGasPrice?: string,
   ) {
     if (!fetchParams) {
       return null;
@@ -498,7 +499,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
   safeRefetchQuotes() {
     const { fetchParams } = this.state;
     if (!this.handle && fetchParams) {
-      this.fetchAndSetQuotes(fetchParams, {}, false, null);
+      this.fetchAndSetQuotes(fetchParams, {});
     }
   }
 
