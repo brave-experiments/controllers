@@ -10,7 +10,7 @@ export interface SwapsTokenObject {
 }
 
 export interface SwapsQuotes {
-  [key: string]: APITrade;
+  [key: string]: SwapsQuote;
 }
 
 export interface SwapsSavings {
@@ -19,26 +19,26 @@ export interface SwapsSavings {
   fee: BigNumber;
 }
 
-export interface SwapsBestQuote {
+export interface SwapsQuote {
   topAggId: string;
   ethTradeValueOfBestQuote: BigNumber;
   ethFeeForBestQuote: BigNumber;
-  isBest: boolean;
+  isBest?: boolean;
+  sourceTokenInfo?: string;
+  destinationTokenInfo?: APIToken;
+  gasEstimateWithRefund?: BigNumber;
+  gasEstimate?: number;
+  savings?: SwapsSavings;
 }
 
-export interface SwapValues {
+export interface SwapsValues {
   allEthTradeValues: BigNumber[];
   allEthFees: BigNumber[];
 }
 
 export interface SwapsBestQuoteAndSwapValues {
-  bestQuote: SwapsBestQuote;
-  values: SwapValues;
-}
-
-export interface SwapsBestQuoteAndSavings {
-  bestQuote: SwapsBestQuote;
-  savings: SwapsSavings;
+  bestQuote: SwapsQuote;
+  values: SwapsValues;
 }
 
 export enum SwapsError {
@@ -82,15 +82,28 @@ export interface APIToken extends APIAsset {
   iconUrl?: string;
 }
 
+export interface APITrades {
+  [key: string]: APITrade;
+}
+
+export interface APITradesMetadata {
+  [key: string]: APITradeMetadata;
+}
+
+export interface APITradesMetadataWithGas {
+  [key: string]: APITradeMetadataWithGas;
+}
+
 export interface APITrade {
   trade: Transaction;
   approvalNeeded: null | {
     data: string;
     to: string;
     from: string;
+    gas: string;
   };
   sourceAmount: string;
-  destinationAmount: string;
+  destinationAmount: number;
   error: null | Error;
   sourceToken: string;
   destinationToken: string;
@@ -102,6 +115,18 @@ export interface APITrade {
   aggType: string;
   fee: number;
   gasMultiplier?: number;
+}
+
+export interface APITradeMetadata extends APITrade {
+  sourceTokenInfo: string;
+  destinationTokenInfo: APIToken;
+}
+
+export interface APITradeMetadataWithGas extends APITradeMetadata {
+  gasEstimate?: number;
+  gasEstimateWithRefund?: BigNumber;
+  isBest?: boolean;
+  savings?: SwapsSavings;
 }
 
 export interface APIAggregatorTradesResponse {
@@ -129,5 +154,6 @@ export interface APITradeParams {
   destinationToken: string;
   fromAddress: string;
   exchangeList?: string[];
+  balanceError?: boolean;
   //
 }

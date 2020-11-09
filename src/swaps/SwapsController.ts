@@ -4,8 +4,22 @@ import NetworkController from '../network/NetworkController';
 import TokenRatesController from '../assets/TokenRatesController';
 import { calcTokenAmount, estimateGas, query } from '../util';
 import { Transaction } from '../transaction/TransactionController';
-import { fetchTradesInfo, getMedian } from './SwapsUtil';
-import { APITradeParams, SwapsBestQuote, SwapsBestQuoteAndSavings, SwapsBestQuoteAndSwapValues, SwapsError, SwapsQuoteParams, SwapsQuotes, SwapsSavings, SwapsTokenObject, SwapValues } from './SwapsInterfaces';
+import { calculateGasEstimateWithRefund, fetchTradesInfo, getMedian } from './SwapsUtil';
+import {
+  APITrade,
+  APITradeMetadata,
+  APITradeMetadataWithGas,
+  APITrades,
+  APITradesMetadata,
+  APITradesMetadataWithGas,
+  SwapsBestQuoteAndSwapValues,
+  SwapsError,
+  SwapsQuote,
+  SwapsQuoteParams,
+  SwapsSavings,
+  SwapsTokenObject,
+  SwapsValues,
+} from './SwapsInterfaces';
 
 const abiERC20 = require('human-standard-token-abi');
 
@@ -24,8 +38,8 @@ export interface SwapsConfig extends BaseConfig {
 }
 
 export interface SwapsState extends BaseState {
-  quotes: SwapsQuotes;
-  fetchParams: null | SwapsQuoteParams;
+  quotes: APITradesMetadataWithGas;
+  fetchParams: SwapsQuoteParams;
   tokens: null | SwapsTokenObject[];
   quotesLastFetched: null | number;
   errorKey: null | SwapsError;
@@ -66,7 +80,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
    * @returns - Promise resolving to the best quote object and ETH values from quotes
    */
   private async getBestQuoteAndEthValues(
-    quotes: SwapsQuotes,
+    quotes: APITradesMetadataWithGas,
     customGasPrice: string | null,
   ): Promise<SwapsBestQuoteAndSwapValues> {
     const tokenRatesController = this.context.TokenRatesController as TokenRatesController;
@@ -81,7 +95,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
 
     const usedGasPrice = customGasPrice || (await this.getGasPrice());
     const quotesValues = Object.values(quotes).map((quote) => quote);
-    quotesValues.forEach((quote) => {
+    quotesValues.forEach((quote: APITradeMetadataWithGas) => {
       const {
         aggregator,
         approvalNeeded,
@@ -152,7 +166,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
    * @param values - Swaps ETH values, all quotes fees and all quotes trade values
    * @returns - Promise resolving to an object containing best aggregator id and respective savings
    */
-  private async calculateSavings(quote: SwapsBestQuote, values: SwapValues): Promise<SwapsSavings> {
+  private async calculateSavings(quote: SwapsQuote, values: SwapsValues): Promise<SwapsSavings> {
     const savings: SwapsSavings = { fee: new BigNumber(0), total: new BigNumber(0), performance: new BigNumber(0) };
     // Performance savings are calculated as:
     //   valueForBestTrade - medianValueOfAllTrades
@@ -176,9 +190,9 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
    * @returns - Promise resolving to an object containing best aggregator id and respective savings
    */
   private async findBestQuoteAndCalulateSavings(
-    quotes: SwapsQuotes,
+    quotes: APITradesMetadataWithGas,
     customGasPrice: string | null,
-  ): Promise<SwapsBestQuoteAndSavings | null> {
+  ): Promise<SwapsQuote | null> {
     const numQuotes = Object.keys(quotes).length;
     if (!numQuotes) {
       return null;
@@ -187,7 +201,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     const { bestQuote, values } = await this.getBestQuoteAndEthValues(quotes, customGasPrice);
     const savings = await this.calculateSavings(bestQuote, values);
 
-    return { bestQuote, savings };
+    return { ...bestQuote, savings };
   }
 
   /**
@@ -261,7 +275,13 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     };
     this.defaultState = {
       quotes: {},
-      fetchParams: null,
+      fetchParams: {
+        slippage: 0,
+        sourceToken: '',
+        sourceAmount: '',
+        destinationToken: '',
+        fromAddress: '',
+      },
       tokens: null,
       quotesLastFetched: 0,
       errorKey: null,
@@ -298,7 +318,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     this.update({ errorKey: newErrorKey });
   }
 
-  setQuotesLastFetched(quotesLastFetched: SwapsQuotes) {
+  setQuotesLastFetched(quotesLastFetched: APITradesMetadataWithGas) {
     this.update({ quotes: quotesLastFetched });
   }
 
@@ -326,6 +346,38 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     this.handle && clearTimeout(this.handle);
   }
 
+  async getAllQuotesWithGasEstimates(quotes: APITradesMetadata): Promise<APITradesMetadataWithGas> {
+    const quoteGasData = await Promise.all(
+      Object.values(quotes).map(async (quote) => {
+        const { gas } = await this.timedoutGasReturn(quote.trade);
+        return { gas, aggId: quote.aggregator };
+      }),
+    );
+    // simulation fail ?
+    const newQuotes: APITradesMetadataWithGas = {};
+    quoteGasData.forEach(({ gas, aggId }) => {
+      if (gas) {
+        const gasEstimateWithRefund = calculateGasEstimateWithRefund(
+          quotes[aggId].maxGas,
+          quotes[aggId].estimatedRefund,
+          parseInt(gas, 16),
+        );
+
+        newQuotes[aggId] = {
+          ...quotes[aggId],
+          gasEstimate: parseInt(gas, 16),
+          gasEstimateWithRefund,
+        };
+      } else if (quotes[aggId].approvalNeeded) {
+        // If gas estimation fails, but an ERC-20 approve is needed, then we do not add any estimate property to the quote object
+        // Such quotes will rely on the maxGas and averageGas properties from the api
+        newQuotes[aggId] = { ...quotes[aggId], gasEstimate: undefined, gasEstimateWithRefund: undefined };
+      }
+      // If gas estimation fails and no approval is needed, then we filter that quote out, so that it is not shown to the user
+    });
+    return newQuotes;
+  }
+
   async fetchAndSetQuotes(
     fetchParams: SwapsQuoteParams,
     fetchParamsMetaData: Record<string, any>,
@@ -351,11 +403,11 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     const indexOfCurrentCall = this.indexOfNewestCallInFlight + 1;
     this.indexOfNewestCallInFlight = indexOfCurrentCall;
 
-    let newQuotes = await fetchTradesInfo(fetchParams);
+    const apiTrades: APITrades = await fetchTradesInfo(fetchParams);
 
-    newQuotes = Object(newQuotes)
+    let apiTradesMetadata: APITradesMetadata = Object(apiTrades)
       .values()
-      .map((quote: Record<string, any>) => ({
+      .map((quote: APITrade) => ({
         ...quote,
         sourceTokenInfo: fetchParamsMetaData.sourceTokenInfo,
         destinationTokenInfo: fetchParamsMetaData.destinationTokenInfo,
@@ -363,7 +415,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
 
     const quotesLastFetched = Date.now();
     let approvalRequired = false;
-    if (fetchParams.sourceToken !== ETH_SWAPS_TOKEN_ADDRESS && Object.values(newQuotes).length) {
+    if (fetchParams.sourceToken !== ETH_SWAPS_TOKEN_ADDRESS && Object.values(apiTradesMetadata).length) {
       const allowance = await this.getERC20Allowance(fetchParams.sourceToken, fetchParams.fromAddress);
 
       // For a user to be able to swap a token, they need to have approved the MetaSwap contract to withdraw that token.
@@ -372,12 +424,12 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
       // call of the ERC-20 approve method is required.
       approvalRequired = allowance === 0;
       if (!approvalRequired) {
-        newQuotes = Object(newQuotes).values((quote: Record<string, any>) => ({
+        apiTradesMetadata = Object(apiTradesMetadata).values((quote: APITradeMetadata) => ({
           ...quote,
           approvalNeeded: null,
         }));
       } else if (!isPolledRequest) {
-        const quoteTrade = Object.values(newQuotes)[0].trade;
+        const quoteTrade = Object.values(apiTradesMetadata)[0].trade;
 
         const transaction: Transaction = {
           data: quoteTrade.data,
@@ -387,7 +439,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
         };
         const { gas: approvalGas } = await this.timedoutGasReturn(transaction);
 
-        newQuotes = Object(newQuotes).values((quote: SwapsQuotes) => ({
+        apiTradesMetadata = Object(apiTradesMetadata).values((quote: APITradeMetadata) => ({
           ...quote,
           approvalNeeded: {
             ...quote.approvalNeeded,
@@ -395,54 +447,52 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
           },
         }));
       }
-
-      let topAggId = null;
-
-      // We can reduce time on the loading screen by only doing this after the
-      // loading screen and best quote have rendered.
-      if (!approvalRequired && !fetchParams?.balanceError) {
-        newQuotes = await this.getAllQuotesWithGasEstimates(newQuotes);
-      }
-
-      if (Object.values(newQuotes).length === 0) {
-        this.setSwapsErrorKey(SwapsError.QUOTES_NOT_AVAILABLE_ERROR);
-      } else {
-        const topQuoteData = await this.findBestQuoteAndCalulateSavings(newQuotes, customGasPrice);
-
-        if (topQuoteData?.bestQuote.topAggId) {
-          topAggId = topQuoteData.bestQuote.topAggId;
-          // newQuotes[topAggId].isBest = topQuoteData.bestQuote.isBest;
-          // newQuotes[topAggId].savings = topQuoteData.savings;
-        }
-      }
-
-      // If a newer call has been made, don't update state with old information
-      // Prevents timing conflicts between fetches
-      if (this.indexOfNewestCallInFlight !== indexOfCurrentCall) {
-        throw new Error(SwapsError.SWAPS_FETCH_ORDER_CONFLICT);
-      }
-
-      this.update({
-        quotes: newQuotes,
-        fetchParams: { ...fetchParams, metaData: fetchParamsMetaData },
-        quotesLastFetched,
-        topAggId,
-      });
-
-      // We only want to do up to a maximum of three requests from polling.
-      this.pollCount += 1;
-      if (this.pollCount < this.config.pollCountLimit + 1) {
-        this.pollForNewQuotes();
-      } else {
-        this.resetPostFetchState();
-        this.setSwapsErrorKey(SwapsError.QUOTES_EXPIRED_ERROR);
-        return null;
-      }
-
-      return [newQuotes, topAggId];
     }
 
-    this.update({ fetchParams: { ...fetchParams, metaData: fetchParamsMetaData } });
+    let topAggId = null;
+    let quotes: APITradesMetadataWithGas = {};
+    // We can reduce time on the loading screen by only doing this after the
+    // loading screen and best quote have rendered.
+    if (!approvalRequired && !fetchParams?.balanceError) {
+      quotes = await this.getAllQuotesWithGasEstimates(apiTradesMetadata);
+    }
+
+    if (Object.values(quotes).length === 0) {
+      this.setSwapsErrorKey(SwapsError.QUOTES_NOT_AVAILABLE_ERROR);
+    } else {
+      const topQuoteData = await this.findBestQuoteAndCalulateSavings(quotes, customGasPrice);
+
+      if (topQuoteData?.topAggId) {
+        topAggId = topQuoteData.topAggId;
+        quotes[topAggId].isBest = topQuoteData.isBest;
+        quotes[topAggId].savings = topQuoteData.savings;
+      }
+    }
+
+    // If a newer call has been made, don't update state with old information
+    // Prevents timing conflicts between fetches
+    if (this.indexOfNewestCallInFlight !== indexOfCurrentCall) {
+      throw new Error(SwapsError.SWAPS_FETCH_ORDER_CONFLICT);
+    }
+
+    this.update({
+      quotes,
+      fetchParams: { ...fetchParams, metaData: fetchParamsMetaData },
+      quotesLastFetched,
+      topAggId,
+    });
+
+    // We only want to do up to a maximum of three requests from polling.
+    this.pollCount += 1;
+    if (this.pollCount < this.config.pollCountLimit + 1) {
+      this.pollForNewQuotes();
+    } else {
+      this.resetPostFetchState();
+      this.setSwapsErrorKey(SwapsError.QUOTES_EXPIRED_ERROR);
+      return null;
+    }
+
+    return [quotes, topAggId];
   }
 
   safeRefetchQuotes() {
@@ -450,11 +500,6 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     if (!this.handle && fetchParams) {
       this.fetchAndSetQuotes(fetchParams, {}, false, null);
     }
-  }
-
-  async getAllQuotesWithGasEstimates(quotes: SwapsQuotes): Promise<SwapsQuotes> {
-    const newQuotes = quotes;
-    return newQuotes;
   }
 
   resetPostFetchState() {

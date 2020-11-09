@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 import { handleFetch, timeoutFetch, constructTxParams, BNToHex } from '../util';
-import { APIAggregatorMetadataResponse, APIAggregatorTradesResponse, APIAsset, APIToken, APITrade, APITradeParams, APITradeRequest, APIType } from './SwapsInterfaces';
+import { APIAggregatorMetadataResponse, APIAggregatorTradesResponse, APIAsset, APIToken, APITrade, APITradeParams, APITradeRequest, APITrades, APIType } from './SwapsInterfaces';
 
 export const ETH_SWAPS_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
 
@@ -45,7 +45,7 @@ export async function fetchTradesInfo({
   destinationToken,
   fromAddress,
   exchangeList,
-}: APITradeParams): Promise<Record<string, APITrade>> {
+}: APITradeParams): Promise<APITrades> {
 
   const urlParams: APITradeRequest = {
     destinationToken,
