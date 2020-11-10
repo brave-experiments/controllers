@@ -19,7 +19,6 @@ export const ETH_SWAPS_TOKEN_OBJECT: APIToken = {
   name: 'Ether',
   address: ETH_SWAPS_TOKEN_ADDRESS,
   decimals: 18,
-  iconUrl: 'images/black-eth-logo.svg',
 };
 
 export const DEFAULT_ERC20_APPROVE_GAS = '0x1d4c0';

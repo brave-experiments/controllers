@@ -4,14 +4,18 @@ import NetworkController from '../network/NetworkController';
 import TokenRatesController from '../assets/TokenRatesController';
 import { calcTokenAmount, estimateGas, query } from '../util';
 import { Transaction } from '../transaction/TransactionController';
-import { calculateGasEstimateWithRefund, fetchTradesInfo, getMedian } from './SwapsUtil';
+import {
+  calculateGasEstimateWithRefund,
+  DEFAULT_ERC20_APPROVE_GAS,
+  ETH_SWAPS_TOKEN_ADDRESS,
+  fetchTradesInfo,
+  getMedian,
+  SWAPS_CONTRACT_ADDRESS,
+} from './SwapsUtil';
 import {
   APITrade,
   APITradeMetadata,
-  APITradeMetadataWithGas,
   APITrades,
-  APITradesMetadata,
-  APITradesMetadataWithGas,
   SwapsBestQuoteAndSwapValues,
   SwapsError,
   SwapsQuote,
@@ -26,10 +30,7 @@ const abiERC20 = require('human-standard-token-abi');
 const EthQuery = require('eth-query');
 const Web3 = require('web3');
 
-const DEFAULT_ERC20_APPROVE_GAS = '0x1d4c0';
-const METASWAP_ADDRESS = '0x881d40237659c251811cec9c364ef91dc08d300c';
 // An address that the metaswap-api recognizes as ETH, in place of the token address that ERC-20 tokens have
-export const ETH_SWAPS_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 export interface SwapsConfig extends BaseConfig {
   maxGasLimit: number;
@@ -38,7 +39,7 @@ export interface SwapsConfig extends BaseConfig {
 }
 
 export interface SwapsState extends BaseState {
-  quotes: APITradesMetadataWithGas;
+  quotes: APITrades;
   fetchParams: SwapsQuoteParams;
   tokens: null | SwapsTokenObject[];
   quotesLastFetched: null | number;
@@ -136,7 +137,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
         destinationToken === ETH_SWAPS_TOKEN_ADDRESS
           ? calcTokenAmount(destinationAmount, 18).minus(totalWeiCost, 10)
           : new BigNumber(tokenConversionRate || 1, 10)
-              .times(calcTokenAmount(destinationAmount, destinationTokenInfo?.decimals), 10)
+              .times(calcTokenAmount(destinationAmount, destinationTokenInfo.decimals), 10)
               .minus(tokenConversionRate ? totalWeiCost : 0, 10);
 
       // collect values for savings calculation
@@ -272,7 +273,8 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     this.defaultConfig = {
       maxGasLimit: 2500000,
       pollCountLimit: 3,
-      metaSwapAddress: METASWAP_ADDRESS,
+      metaSwapAddress: SWAPS_CONTRACT_ADDRESS,
+      // add threshold to fetchtoken
     };
     this.defaultState = {
       quotes: {},
@@ -282,12 +284,22 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
         sourceAmount: '',
         destinationToken: '',
         fromAddress: '',
+        metaData: {
+          sourceTokenInfo: '',
+          destinationTokenInfo: {
+            decimals: 0,
+            address: '',
+            symbol: '',
+          },
+          accountBalance: '0x',
+        },
       },
       tokens: null,
       quotesLastFetched: 0,
       errorKey: null,
       topAggId: null,
       swapsFeatureIsLive: false,
+      // fetch token threshold
     };
     this.indexOfNewestCallInFlight = 0;
 
@@ -319,7 +331,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     this.update({ errorKey: newErrorKey });
   }
 
-  setQuotesLastFetched(quotesLastFetched: APITradesMetadataWithGas) {
+  setQuotesLastFetched(quotesLastFetched: APITrades) {
     this.update({ quotes: quotesLastFetched });
   }
 
@@ -334,9 +346,9 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
   pollForNewQuotes() {
     const { fetchParams } = this.state;
     this.handle && clearTimeout(this.handle);
-    this.fetchAndSetQuotes(fetchParams, fetchParams?.metaData || {}, true);
+    this.fetchAndSetQuotes(fetchParams, fetchParams.metaData, true);
     this.handle = setTimeout(() => {
-      this.fetchAndSetQuotes(fetchParams, fetchParams?.metaData || {}, true);
+      this.fetchAndSetQuotes(fetchParams, fetchParams.metaData, true);
     }, QUOTE_POLLING_INTERVAL);
   }
 
@@ -382,7 +394,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
 
   async fetchAndSetQuotes(
     fetchParams: SwapsQuoteParams,
-    fetchParamsMetaData: Record<string, any>,
+    fetchParamsMetaData: APITradeMetadata,
     isPolledRequest?: boolean,
     customGasPrice?: string,
   ) {
@@ -405,9 +417,9 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     const indexOfCurrentCall = this.indexOfNewestCallInFlight + 1;
     this.indexOfNewestCallInFlight = indexOfCurrentCall;
 
-    let apiTrades: APITrades = await fetchTradesInfo(fetchParams);
+    const apiTrades: APITrades = await fetchTradesInfo(fetchParams);
 
-    // !! sourceTokenInfo and destinationTokenInfo is in state, why add it to all entries?
+    // !! sourceTokenInfo and destinationTokenInfo are in state, why add it to all entries?
 
     const quotesLastFetched = Date.now();
 
@@ -423,12 +435,11 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
 
       approvalRequired = allowance === 0;
       if (!approvalRequired) {
-        apiTrades = Object(apiTrades).values((quote: APITradeMetadata) => ({
-          ...quote,
-          approvalNeeded: null,
-        }));
+        Object(apiTrades)
+          .keys()
+          .forEach((key: string) => (apiTrades[key].approvalNeeded = null));
       } else if (!isPolledRequest) {
-        const quoteTrade = Object.values(apiTrades)[0].trade;
+        const quoteTrade = apiTrades[0].trade;
 
         const transaction: Transaction = {
           data: quoteTrade.data,
@@ -438,15 +449,11 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
         };
         const { gas: approvalGas } = await this.timedoutGasReturn(transaction);
 
-        // !! approvalNeeded is the same for all quotes, why add it to all entries?
-
-        apiTrades = Object(apiTrades).values((quote: APITrade) => ({
-          ...quote,
-          approvalNeeded: {
-            ...quote.approvalNeeded,
-            gas: approvalGas || DEFAULT_ERC20_APPROVE_GAS,
-          },
-        }));
+        Object(apiTrades)
+          .keys()
+          .forEach((key: string) => {
+            apiTrades[key].approvalNeeded!.gas = approvalGas || DEFAULT_ERC20_APPROVE_GAS;
+          });
       }
     }
 
@@ -496,10 +503,15 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     return [quotes, topAggId];
   }
 
+  // fetchTokenWithCache() {
+  // -- with semaphore
+
+  // }
+
   safeRefetchQuotes() {
     const { fetchParams } = this.state;
     if (!this.handle && fetchParams) {
-      this.fetchAndSetQuotes(fetchParams, {});
+      this.fetchAndSetQuotes(fetchParams, fetchParams.metaData);
     }
   }
 
