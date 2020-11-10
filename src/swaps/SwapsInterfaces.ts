@@ -9,10 +9,6 @@ export interface SwapsTokenObject {
   iconUrl?: string;
 }
 
-export interface SwapsQuotes {
-  [key: string]: SwapsQuote;
-}
-
 export interface SwapsSavings {
   total: BigNumber;
   performance: BigNumber;
@@ -86,14 +82,6 @@ export interface APITrades {
   [key: string]: APITrade;
 }
 
-export interface APITradesMetadata {
-  [key: string]: APITradeMetadata;
-}
-
-export interface APITradesMetadataWithGas {
-  [key: string]: APITradeMetadataWithGas;
-}
-
 export interface APITrade {
   trade: Transaction;
   approvalNeeded: null | {
@@ -127,13 +115,6 @@ export interface APITradeMetadata {
   accountBalance: string;
 }
 
-export interface APITradeMetadataWithGas extends APITradeMetadata {
-  gasEstimate?: number;
-  gasEstimateWithRefund?: BigNumber;
-  isBest?: boolean;
-  savings?: SwapsSavings;
-}
-
 export interface APIAggregatorTradesResponse {
   [key: string]: APITrade;
 }
@@ -160,5 +141,4 @@ export interface APITradeParams {
   fromAddress: string;
   exchangeList?: string[];
   balanceError?: boolean;
-  //
 }
