@@ -1,5 +1,4 @@
 import BigNumber from 'bignumber.js';
-import { Token } from '../assets/TokenRatesController';
 import { Transaction } from '../transaction/TransactionController';
 
 export interface SwapsTokenObject {
@@ -125,6 +124,7 @@ export interface APITrade {
 export interface APITradeMetadata {
   sourceTokenInfo: string;
   destinationTokenInfo: APIToken;
+  accountBalance: string;
 }
 
 export interface APITradeMetadataWithGas extends APITradeMetadata {
