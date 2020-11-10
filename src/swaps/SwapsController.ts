@@ -8,6 +8,7 @@ import {
   calculateGasEstimateWithRefund,
   DEFAULT_ERC20_APPROVE_GAS,
   ETH_SWAPS_TOKEN_ADDRESS,
+  fetchTokens,
   fetchTradesInfo,
   getMedian,
   SWAPS_CONTRACT_ADDRESS,
@@ -25,8 +26,8 @@ import {
   SwapsValues,
 } from './SwapsInterfaces';
 
+const { Mutex } = require('await-semaphore');
 const abiERC20 = require('human-standard-token-abi');
-
 const EthQuery = require('eth-query');
 const Web3 = require('web3');
 
@@ -36,6 +37,7 @@ export interface SwapsConfig extends BaseConfig {
   maxGasLimit: number;
   pollCountLimit: number;
   metaSwapAddress: string;
+  fetchTokensThreshold: number;
 }
 
 export interface SwapsState extends BaseState {
@@ -46,6 +48,7 @@ export interface SwapsState extends BaseState {
   errorKey: null | SwapsError;
   topAggId: null | string;
   swapsFeatureIsLive: boolean;
+  tokensLastFetched: number;
 }
 
 const QUOTE_POLLING_INTERVAL = 50 * 1000;
@@ -62,6 +65,8 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
   private pollCount = 0;
 
   private indexOfNewestCallInFlight: number;
+
+  private mutex = new Mutex();
 
   /**
    * Fetch current gas price
@@ -274,7 +279,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
       maxGasLimit: 2500000,
       pollCountLimit: 3,
       metaSwapAddress: SWAPS_CONTRACT_ADDRESS,
-      // add threshold to fetchtoken
+      fetchTokensThreshold: 1000 * 60 * 60 * 24,
     };
     this.defaultState = {
       quotes: {},
@@ -503,10 +508,17 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
     return [quotes, topAggId];
   }
 
-  // fetchTokenWithCache() {
-  // -- with semaphore
-
-  // }
+  async fetchTokenWithCache() {
+    if (this.config.fetchTokensThreshold < Date.now() - this.state.tokensLastFetched) {
+      const releaseLock = await this.mutex.acquire();
+      try {
+        const newTokens = await fetchTokens();
+        this.update({ tokens: newTokens });
+      } finally {
+        releaseLock();
+      }
+    }
+  }
 
   safeRefetchQuotes() {
     const { fetchParams } = this.state;
