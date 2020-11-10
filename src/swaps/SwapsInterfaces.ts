@@ -1,4 +1,5 @@
 import BigNumber from 'bignumber.js';
+import { Token } from '../assets/TokenRatesController';
 import { Transaction } from '../transaction/TransactionController';
 
 export interface SwapsTokenObject {
@@ -115,9 +116,13 @@ export interface APITrade {
   aggType: string;
   fee: number;
   gasMultiplier?: number;
+  gasEstimate?: number;
+  gasEstimateWithRefund?: BigNumber;
+  isBest?: boolean;
+  savings?: SwapsSavings;
 }
 
-export interface APITradeMetadata extends APITrade {
+export interface APITradeMetadata {
   sourceTokenInfo: string;
   destinationTokenInfo: APIToken;
 }
@@ -144,7 +149,7 @@ export interface APIAggregatorMetadataResponse {
 }
 
 export interface SwapsQuoteParams extends APITradeParams {
-  metaData?: Record<string, any>;
+  metaData: APITradeMetadata;
 }
 
 export interface APITradeParams {
