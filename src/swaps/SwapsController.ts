@@ -55,7 +55,7 @@ const QUOTE_POLLING_INTERVAL = 50 * 1000;
 // The MAX_GAS_LIMIT is a number that is higher than the maximum gas costs we have observed on any aggregator
 const MAX_GAS_LIMIT = 2500000;
 
-export default class SwapsController extends BaseController<SwapsConfig, SwapsState> {
+export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
   private handle?: NodeJS.Timer;
 
   private web3: any;
@@ -304,7 +304,7 @@ export default class SwapsController extends BaseController<SwapsConfig, SwapsSt
       errorKey: null,
       topAggId: null,
       swapsFeatureIsLive: false,
-      // fetch token threshold
+      tokensLastFetched: 0,
     };
     this.indexOfNewestCallInFlight = 0;
 

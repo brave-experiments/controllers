@@ -82,8 +82,12 @@ export interface APITrades {
   [key: string]: APITrade;
 }
 
+interface TradeTransaction extends Transaction {
+  value: string;
+}
+
 export interface APITrade {
-  trade: Transaction;
+  trade: TradeTransaction;
   approvalNeeded: null | {
     data: string;
     to: string;
