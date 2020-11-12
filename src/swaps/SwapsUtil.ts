@@ -4,10 +4,10 @@ import {
   APIAggregatorMetadata,
   SwapsAsset,
   SwapsToken,
-  APITrade,
-  APITradeParams,
   APITradeRequest,
   APIType,
+  SwapsTrade,
+  APIFetchQuotesParams,
 } from './SwapsInterfaces';
 
 export const ETH_SWAPS_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -52,7 +52,7 @@ export async function fetchTradesInfo({
   destinationToken,
   fromAddress,
   exchangeList,
-}: APITradeParams): Promise<{ [key: string]: APITrade }> {
+}: APIFetchQuotesParams): Promise<{ [key: string]: SwapsTrade }> {
   const urlParams: APITradeRequest = {
     destinationToken,
     sourceToken,
@@ -67,9 +67,9 @@ export async function fetchTradesInfo({
   }
 
   const tradeURL = `${getBaseApiURL(APIType.TRADES)}?${new URLSearchParams(urlParams as Record<any, any>).toString()}`;
-  const tradesResponse = (await timeoutFetch(tradeURL, { method: 'GET' }, 15000)) as APITrade[];
+  const tradesResponse = (await timeoutFetch(tradeURL, { method: 'GET' }, 15000)) as SwapsTrade[];
 
-  const newQuotes = tradesResponse.reduce((aggIdTradeMap: { [key: string]: APITrade }, quote: APITrade) => {
+  const newQuotes = tradesResponse.reduce((aggIdTradeMap: { [key: string]: SwapsTrade }, quote: SwapsTrade) => {
     if (quote.trade && !quote.error) {
       const constructedTrade = constructTxParams({
         to: quote.trade.to,

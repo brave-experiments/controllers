@@ -544,3 +544,5 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     this.handle && clearTimeout(this.handle);
   }
 }
+
+export default SwapsController;
