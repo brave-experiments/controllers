@@ -36,6 +36,7 @@ export interface SwapsConfig extends BaseConfig {
   pollCountLimit: number;
   metaSwapAddress: string;
   fetchTokensThreshold: number;
+  quotePollingInterval: number;
 }
 
 export interface SwapsState extends BaseState {
@@ -282,6 +283,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       pollCountLimit: 3,
       metaSwapAddress: SWAPS_CONTRACT_ADDRESS,
       fetchTokensThreshold: 1000 * 60 * 60 * 24,
+      quotePollingInterval: QUOTE_POLLING_INTERVAL,
     };
     this.defaultState = {
       quotes: {},
@@ -356,7 +358,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     this.fetchAndSetQuotes(fetchParams, fetchParams.metaData, true);
     this.handle = setTimeout(() => {
       this.fetchAndSetQuotes(fetchParams, fetchParams.metaData, true);
-    }, QUOTE_POLLING_INTERVAL);
+    }, this.config.quotePollingInterval);
   }
 
   /**

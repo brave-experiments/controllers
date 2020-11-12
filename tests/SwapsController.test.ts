@@ -1,3 +1,4 @@
+import { spy } from 'sinon';
 import AssetsContractController from '../src/assets/AssetsContractController';
 import AssetsController from '../src/assets/AssetsController';
 import CurrencyRateController from '../src/assets/CurrencyRateController';
@@ -42,7 +43,7 @@ describe('SwapsController', () => {
   let preferencesController: PreferencesController;
 
   beforeEach(() => {
-    swapsController = new SwapsController();
+    swapsController = new SwapsController({ quotePollingInterval: 10 });
     networkController = new NetworkController();
     tokenRatesController = new TokenRatesController();
     assetsController = new AssetsController();
@@ -115,5 +116,35 @@ describe('SwapsController', () => {
   it('should set swaps liveness', () => {
     swapsController.setSwapsLiveness(true);
     expect(swapsController.state.swapsFeatureIsLive).toEqual(true);
+  });
+
+  it('should call poll', () => {
+    return new Promise((resolve) => {
+      const poll = spy(swapsController, 'fetchAndSetQuotes');
+      swapsController.pollForNewQuotes();
+      expect(poll.called).toBe(true);
+      expect(poll.calledTwice).toBe(false);
+      setTimeout(() => {
+        expect(poll.calledTwice).toBe(true);
+        resolve();
+      }, 11);
+    });
+  });
+
+  it('should stop polling', () => {
+    return new Promise((resolve) => {
+      const poll = spy(swapsController, 'fetchAndSetQuotes');
+      swapsController.pollForNewQuotes();
+      expect(poll.called).toBe(true);
+      expect(poll.calledTwice).toBe(false);
+      setTimeout(() => {
+        expect(poll.calledTwice).toBe(true);
+        swapsController.stopPollingForQuotes();
+        setTimeout(() => {
+          expect(poll.calledThrice).toBe(false);
+        }, 11);
+        resolve();
+      }, 11);
+    });
   });
 });
