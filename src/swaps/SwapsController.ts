@@ -14,9 +14,9 @@ import {
   SWAPS_CONTRACT_ADDRESS,
 } from './SwapsUtil';
 import {
-  SwapsTrade,
-  SwapsTradeMetadata,
-  SwapsTrades,
+  APITrade,
+  APITradeMetadata,
+  APITrades,
   SwapsBestQuoteAndSwapValues,
   SwapsError,
   SwapsQuote,
@@ -41,7 +41,7 @@ export interface SwapsConfig extends BaseConfig {
 }
 
 export interface SwapsState extends BaseState {
-  quotes: SwapsTrades;
+  quotes: APITrades;
   fetchParams: SwapsQuoteParams;
   tokens: null | SwapsTokenObject[];
   quotesLastFetched: null | number;
@@ -86,7 +86,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    * @returns - Promise resolving to the best quote object and ETH values from quotes
    */
   private async getBestQuoteAndEthValues(
-    quotes: SwapsTrades,
+    quotes: APITrades,
     customGasPrice?: string,
   ): Promise<SwapsBestQuoteAndSwapValues> {
     const tokenRatesController = this.context.TokenRatesController as TokenRatesController;
@@ -101,7 +101,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
     const usedGasPrice = customGasPrice || (await this.getGasPrice());
     const quotesValues = Object.values(quotes).map((quote) => quote);
-    quotesValues.forEach((quote: SwapsTrade) => {
+    quotesValues.forEach((quote: APITrade) => {
       const {
         aggregator,
         approvalNeeded,
@@ -197,7 +197,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    * @returns - Promise resolving to an object containing best aggregator id and respective savings
    */
   private async findBestQuoteAndCalulateSavings(
-    quotes: SwapsTrades,
+    quotes: APITrades,
     customGasPrice?: string,
   ): Promise<SwapsQuote | null> {
     const numQuotes = Object.keys(quotes).length;
@@ -365,7 +365,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     this.handle && clearTimeout(this.handle);
   }
 
-  async getAllQuotesWithGasEstimates(quotes: SwapsTrades): Promise<SwapsTrades> {
+  async getAllQuotesWithGasEstimates(quotes: APITrades): Promise<APITrades> {
     const quoteGasData = await Promise.all(
       Object.values(quotes).map(async (quote) => {
         const { gas } = await this.timedoutGasReturn(quote.trade);
@@ -373,7 +373,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       }),
     );
     // simulation fail ?
-    const newQuotes: SwapsTrades = {};
+    const newQuotes: APITrades = {};
     quoteGasData.forEach(({ gas, aggId }) => {
       if (gas) {
         const gasEstimateWithRefund = calculateGasEstimateWithRefund(
@@ -399,7 +399,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
   async fetchAndSetQuotes(
     fetchParams: SwapsQuoteParams,
-    fetchParamsMetaData: SwapsTradeMetadata,
+    fetchParamsMetaData: APITradeMetadata,
     isPolledRequest?: boolean,
     customGasPrice?: string,
   ) {
@@ -422,7 +422,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     const indexOfCurrentCall = this.indexOfNewestCallInFlight + 1;
     this.indexOfNewestCallInFlight = indexOfCurrentCall;
 
-    const apiTrades: SwapsTrades = await fetchTradesInfo(fetchParams);
+    const apiTrades: APITrades = await fetchTradesInfo(fetchParams);
 
     // !! sourceTokenInfo and destinationTokenInfo are in state, why add it to all entries?
 
@@ -463,7 +463,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     }
 
     let topAggId = null;
-    let quotes: SwapsTrades = {};
+    let quotes: APITrades = {};
     // We can reduce time on the loading screen by only doing this after the
     // loading screen and best quote have rendered.
     if (!approvalRequired && !fetchParams?.balanceError) {
