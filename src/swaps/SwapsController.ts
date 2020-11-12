@@ -336,8 +336,8 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     this.update({ errorKey: newErrorKey });
   }
 
-  setQuotesLastFetched(quotesLastFetched: APITrades) {
-    this.update({ quotes: quotesLastFetched });
+  setQuotesLastFetched(newQuotesLastFetched: number) {
+    this.update({ quotesLastFetched: newQuotesLastFetched });
   }
 
   setSwapsLiveness(isLive: boolean) {

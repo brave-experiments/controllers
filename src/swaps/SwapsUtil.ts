@@ -112,7 +112,7 @@ export async function fetchTokens(): Promise<APIToken[]> {
   const filteredTokens = tokens.filter((token) => {
     return token.address !== ETH_SWAPS_TOKEN_ADDRESS;
   });
-  tokens.push(ETH_SWAPS_TOKEN_OBJECT);
+  filteredTokens.push(ETH_SWAPS_TOKEN_OBJECT);
   return filteredTokens;
 }
 
