@@ -1,20 +1,18 @@
 import BigNumber from 'bignumber.js';
 import { handleFetch, timeoutFetch, constructTxParams, BNToHex } from '../util';
 import {
-  APIAggregatorMetadataResponse,
-  APIAggregatorTradesResponse,
-  APIAsset,
-  APIToken,
+  APIAggregatorMetadata,
+  SwapsAsset,
+  SwapsToken,
   APITrade,
   APITradeParams,
   APITradeRequest,
-  APITrades,
   APIType,
 } from './SwapsInterfaces';
 
 export const ETH_SWAPS_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-export const ETH_SWAPS_TOKEN_OBJECT: APIToken = {
+export const ETH_SWAPS_TOKEN_OBJECT: SwapsToken = {
   symbol: 'ETH',
   name: 'Ether',
   address: ETH_SWAPS_TOKEN_ADDRESS,
@@ -54,7 +52,7 @@ export async function fetchTradesInfo({
   destinationToken,
   fromAddress,
   exchangeList,
-}: APITradeParams): Promise<APITrades> {
+}: APITradeParams): Promise<{ [key: string]: APITrade }> {
   const urlParams: APITradeRequest = {
     destinationToken,
     sourceToken,
@@ -71,7 +69,7 @@ export async function fetchTradesInfo({
   const tradeURL = `${getBaseApiURL(APIType.TRADES)}?${new URLSearchParams(urlParams as Record<any, any>).toString()}`;
   const tradesResponse = (await timeoutFetch(tradeURL, { method: 'GET' }, 15000)) as APITrade[];
 
-  const newQuotes = tradesResponse.reduce((aggIdTradeMap: APIAggregatorTradesResponse, quote: APITrade) => {
+  const newQuotes = tradesResponse.reduce((aggIdTradeMap: { [key: string]: APITrade }, quote: APITrade) => {
     if (quote.trade && !quote.error) {
       const constructedTrade = constructTxParams({
         to: quote.trade.to,
@@ -106,9 +104,9 @@ export async function fetchTradesInfo({
   return newQuotes;
 }
 
-export async function fetchTokens(): Promise<APIToken[]> {
+export async function fetchTokens(): Promise<SwapsToken[]> {
   const tokenUrl = getBaseApiURL(APIType.TOKENS);
-  const tokens: APIToken[] = await handleFetch(tokenUrl, { method: 'GET' });
+  const tokens: SwapsToken[] = await handleFetch(tokenUrl, { method: 'GET' });
   const filteredTokens = tokens.filter((token) => {
     return token.address !== ETH_SWAPS_TOKEN_ADDRESS;
   });
@@ -118,13 +116,15 @@ export async function fetchTokens(): Promise<APIToken[]> {
 
 export async function fetchAggregatorMetadata() {
   const aggregatorMetadataUrl = getBaseApiURL(APIType.AGGREGATOR_METADATA);
-  const aggregators: APIAggregatorMetadataResponse = await handleFetch(aggregatorMetadataUrl, { method: 'GET' });
+  const aggregators: { [key: string]: APIAggregatorMetadata } = await handleFetch(aggregatorMetadataUrl, {
+    method: 'GET',
+  });
   return aggregators;
 }
 
-export async function fetchTopAssets(): Promise<APIAsset[]> {
+export async function fetchTopAssets(): Promise<SwapsAsset[]> {
   const topAssetsUrl = getBaseApiURL(APIType.TOP_ASSETS);
-  const response: APIAsset[] = await handleFetch(topAssetsUrl, { method: 'GET' });
+  const response: SwapsAsset[] = await handleFetch(topAssetsUrl, { method: 'GET' });
   return response;
 }
 

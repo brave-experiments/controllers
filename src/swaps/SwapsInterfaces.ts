@@ -1,42 +1,6 @@
 import BigNumber from 'bignumber.js';
 import { Transaction } from '../transaction/TransactionController';
 
-export interface SwapsTokenObject {
-  address: string;
-  symbol: string;
-  decimals: number;
-  occurances?: number;
-  iconUrl?: string;
-}
-
-export interface SwapsSavings {
-  total: BigNumber;
-  performance: BigNumber;
-  fee: BigNumber;
-}
-
-export interface SwapsQuote {
-  topAggId: string;
-  ethTradeValueOfBestQuote: BigNumber;
-  ethFeeForBestQuote: BigNumber;
-  isBest?: boolean;
-  sourceTokenInfo?: string;
-  destinationTokenInfo?: APIToken;
-  gasEstimateWithRefund?: BigNumber;
-  gasEstimate?: number;
-  savings?: SwapsSavings;
-}
-
-export interface SwapsValues {
-  allEthTradeValues: BigNumber[];
-  allEthFees: BigNumber[];
-}
-
-export interface SwapsBestQuoteAndSwapValues {
-  bestQuote: SwapsQuote;
-  values: SwapsValues;
-}
-
 export enum SwapsError {
   QUOTES_EXPIRED_ERROR = 'quotes-expired',
   SWAP_FAILED_ERROR = 'swap-failed-error',
@@ -54,6 +18,41 @@ export enum APIType {
   AGGREGATOR_METADATA = 'AGGREGATOR_METADATA',
 }
 
+export interface SwapsAsset {
+  address: string;
+  symbol: string;
+  name?: string;
+}
+
+export interface SwapsToken extends SwapsAsset {
+  decimals: number;
+  occurances?: number;
+  iconUrl?: string;
+}
+
+export interface SwapsQuoteSavings {
+  total: BigNumber;
+  performance: BigNumber;
+  fee: BigNumber;
+}
+
+export interface SwapsQuote {
+  topAggId: string;
+  ethTradeValueOfBestQuote: BigNumber;
+  ethFeeForBestQuote: BigNumber;
+  isBest?: boolean;
+  sourceTokenInfo?: string;
+  destinationTokenInfo?: SwapsToken;
+  gasEstimateWithRefund?: BigNumber;
+  gasEstimate?: number;
+  savings?: SwapsQuoteSavings;
+}
+
+export interface SwapsAllValues {
+  allEthTradeValues: BigNumber[];
+  allEthFees: BigNumber[];
+}
+
 export interface APITradeRequest {
   sourceToken: string;
   destinationToken: string;
@@ -63,30 +62,37 @@ export interface APITradeRequest {
   txOriginAddress?: string;
   timeout: number;
   walletAddress: string;
-  exchangeList?: null | string[];
+  exchangeList?: string[];
 }
 
-export interface APIAsset {
-  address: string;
-  symbol: string;
-  name?: string;
+export interface APIFetchQuotesMetadata {
+  sourceTokenInfo: string;
+  destinationTokenInfo: SwapsToken;
+  accountBalance: string;
 }
 
-export interface APIToken extends APIAsset {
-  decimals: number;
-  occurances?: number;
-  iconUrl?: string;
+export interface APIFetchQuotesParams {
+  slippage: number;
+  sourceToken: string;
+  sourceAmount: string;
+  destinationToken: string;
+  fromAddress: string;
+  exchangeList?: string[];
+  balanceError?: boolean;
+  metaData: APIFetchQuotesMetadata;
 }
 
-export interface APITrades {
-  [key: string]: APITrade;
+export interface APIAggregatorMetadata {
+  color: string;
+  title: string;
+  icon: string;
 }
 
 interface TradeTransaction extends Transaction {
   value: string;
 }
 
-export interface APITrade {
+export interface SwapsTrade {
   trade: TradeTransaction;
   approvalNeeded: null | {
     data: string;
@@ -110,39 +116,5 @@ export interface APITrade {
   gasEstimate?: number;
   gasEstimateWithRefund?: BigNumber;
   isBest?: boolean;
-  savings?: SwapsSavings;
-}
-
-export interface APITradeMetadata {
-  sourceTokenInfo: string;
-  destinationTokenInfo: APIToken;
-  accountBalance: string;
-}
-
-export interface APIAggregatorTradesResponse {
-  [key: string]: APITrade;
-}
-
-export interface APIAggregatorMetadata {
-  color: string;
-  title: string;
-  icon: string;
-}
-
-export interface APIAggregatorMetadataResponse {
-  [key: string]: APIAggregatorMetadata;
-}
-
-export interface SwapsQuoteParams extends APITradeParams {
-  metaData: APITradeMetadata;
-}
-
-export interface APITradeParams {
-  slippage: number;
-  sourceToken: string;
-  sourceAmount: string;
-  destinationToken: string;
-  fromAddress: string;
-  exchangeList?: string[];
-  balanceError?: boolean;
+  savings?: SwapsQuoteSavings;
 }
