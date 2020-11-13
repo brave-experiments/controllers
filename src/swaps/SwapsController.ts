@@ -517,7 +517,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       const releaseLock = await this.mutex.acquire();
       try {
         const newTokens = await fetchTokens();
-        this.update({ tokens: newTokens });
+        this.update({ tokens: newTokens, tokensLastFetched: Date.now() });
       } finally {
         releaseLock();
       }
