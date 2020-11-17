@@ -1,15 +1,16 @@
 import BigNumber from 'bignumber.js';
+import { APIType } from '../src/swaps/SwapsInterfaces';
 import * as swapsUtil from '../src/swaps/SwapsUtil';
 
 describe('SwapsUtil', () => {
   describe('getBaseApiURL', () => {
     it('should return expected values', () => {
-      expect(swapsUtil.getBaseApiURL(swapsUtil.APIType.TRADES)).toBeTruthy();
-      expect(swapsUtil.getBaseApiURL(swapsUtil.APIType.TRADES)).toBeTruthy();
-      expect(swapsUtil.getBaseApiURL(swapsUtil.APIType.TOKENS)).toBeTruthy();
-      expect(swapsUtil.getBaseApiURL(swapsUtil.APIType.TOP_ASSETS)).toBeTruthy();
-      expect(swapsUtil.getBaseApiURL(swapsUtil.APIType.FEATURE_FLAG)).toBeTruthy();
-      expect(swapsUtil.getBaseApiURL(swapsUtil.APIType.AGGREGATOR_METADATA)).toBeTruthy();
+      expect(swapsUtil.getBaseApiURL(APIType.TRADES)).toBeTruthy();
+      expect(swapsUtil.getBaseApiURL(APIType.TRADES)).toBeTruthy();
+      expect(swapsUtil.getBaseApiURL(APIType.TOKENS)).toBeTruthy();
+      expect(swapsUtil.getBaseApiURL(APIType.TOP_ASSETS)).toBeTruthy();
+      expect(swapsUtil.getBaseApiURL(APIType.FEATURE_FLAG)).toBeTruthy();
+      expect(swapsUtil.getBaseApiURL(APIType.AGGREGATOR_METADATA)).toBeTruthy();
     });
   });
 
@@ -23,6 +24,15 @@ describe('SwapsUtil', () => {
         destinationToken: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
         sourceAmount: '1000000000000000000',
         fromAddress: '0xB0dA5965D43369968574D399dBe6374683773a65',
+        metaData: {
+          sourceTokenInfo: '',
+          destinationTokenInfo: {
+            decimals: 18,
+            address: '',
+            symbol: '',
+          },
+          accountBalance: '0x0',
+        },
       });
       expect(quotes).toBeInstanceOf(Object);
     });
