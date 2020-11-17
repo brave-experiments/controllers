@@ -1,4 +1,4 @@
-import { spy } from 'sinon';
+import { SinonStub, stub, spy } from 'sinon';
 import AssetsContractController from '../src/assets/AssetsContractController';
 import AssetsController from '../src/assets/AssetsController';
 import CurrencyRateController from '../src/assets/CurrencyRateController';
@@ -8,6 +8,8 @@ import NetworkController from '../src/network/NetworkController';
 import SwapsController from '../src/swaps/SwapsController';
 import { SwapsError } from '../src/swaps/SwapsInterfaces';
 import PreferencesController from '../src/user/PreferencesController';
+
+const swapsUtil = require('../src/swaps/SwapsUtil');
 
 const API_TOKENS = [
   {
@@ -41,8 +43,9 @@ describe('SwapsController', () => {
   let currencyRateController: CurrencyRateController;
   let assetsContractController: AssetsContractController;
   let preferencesController: PreferencesController;
-
+  let swapsUtilFetchTokens: SinonStub;
   beforeEach(() => {
+    swapsUtilFetchTokens = stub(swapsUtil, 'fetchTokens').returns([]);
     swapsController = new SwapsController({ quotePollingInterval: 10 });
     networkController = new NetworkController();
     tokenRatesController = new TokenRatesController();
@@ -61,12 +64,17 @@ describe('SwapsController', () => {
     ]);
   });
 
+  afterEach(() => {
+    swapsUtilFetchTokens.restore();
+  });
+
   it('should set default config', () => {
     expect(swapsController.config).toEqual({
       maxGasLimit: 2500000,
       pollCountLimit: 3,
       metaSwapAddress: '0x881d40237659c251811cec9c364ef91dc08d300c',
       fetchTokensThreshold: 86400000,
+      quotePollingInterval: 10,
     });
   });
 
@@ -133,7 +141,7 @@ describe('SwapsController', () => {
 
   it('should stop polling', () => {
     return new Promise((resolve) => {
-      const poll = spy(swapsController, 'fetchAndSetQuotes');
+      const poll = stub(swapsController, 'fetchAndSetQuotes');
       swapsController.pollForNewQuotes();
       expect(poll.called).toBe(true);
       expect(poll.calledTwice).toBe(false);
@@ -145,6 +153,39 @@ describe('SwapsController', () => {
         }, 11);
         resolve();
       }, 11);
+    });
+  });
+
+  it('should fetch tokens when no tokens in state', () => {
+    return new Promise(async (resolve) => {
+      swapsController.state.tokens = null;
+      await swapsController.fetchTokenWithCache();
+      expect(swapsUtilFetchTokens.called).toBe(true);
+      resolve();
+    });
+  });
+
+  it('should fetch tokens when no threshold reached', () => {
+    return new Promise(async (resolve) => {
+      swapsController.state.tokens = [];
+      swapsController.state.tokensLastFetched = Date.now();
+      await swapsController.fetchTokenWithCache();
+      expect(swapsUtilFetchTokens.called).toBe(false);
+      setTimeout(async () => {
+        await swapsController.fetchTokenWithCache();
+        expect(swapsUtilFetchTokens.called).toBe(true);
+      }, 20);
+      resolve();
+    });
+  });
+
+  it('should not fetch tokens when no threshold reached or tokens are available', () => {
+    return new Promise(async (resolve) => {
+      swapsController.state.tokens = [];
+      swapsController.state.tokensLastFetched = Date.now();
+      await swapsController.fetchTokenWithCache();
+      expect(swapsUtilFetchTokens.called).toBe(false);
+      resolve();
     });
   });
 });

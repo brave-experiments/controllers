@@ -513,7 +513,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
   }
 
   async fetchTokenWithCache() {
-    if (this.config.fetchTokensThreshold < Date.now() - this.state.tokensLastFetched) {
+    if (!this.state.tokens || this.config.fetchTokensThreshold < Date.now() - this.state.tokensLastFetched) {
       const releaseLock = await this.mutex.acquire();
       try {
         const newTokens = await fetchTokens();
