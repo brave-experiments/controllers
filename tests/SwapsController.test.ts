@@ -215,4 +215,13 @@ describe('SwapsController', () => {
       resolve();
     });
   });
+
+  it('should refetch quotes', () => {
+    return new Promise(async (resolve) => {
+      const poll = stub(swapsController, 'fetchAndSetQuotes');
+      await swapsController.safeRefetchQuotes();
+      expect(poll.called).toBe(true);
+      resolve();
+    });
+  });
 });

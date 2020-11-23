@@ -508,7 +508,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     if (this.pollCount < this.config.pollCountLimit + 1) {
       this.pollForNewQuotes();
     } else {
-      this.resetPostFetchState();
       this.setSwapsErrorKey(SwapsError.QUOTES_EXPIRED_ERROR);
       return null;
     }
@@ -533,21 +532,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     if (!this.handle && fetchParams) {
       this.fetchAndSetQuotes(fetchParams, fetchParams.metaData);
     }
-  }
-
-  resetPostFetchState() {
-    const {
-      tokens: resetTokens,
-      fetchParams: resetFetchParams,
-      swapsFeatureIsLive: resetSwapsFeatureIsLive,
-    } = this.state;
-    this.update({
-      ...this.state,
-      tokens: resetTokens,
-      fetchParams: resetFetchParams,
-      swapsFeatureIsLive: resetSwapsFeatureIsLive,
-    });
-    this.handle && clearTimeout(this.handle);
   }
 }
 
