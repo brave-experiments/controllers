@@ -222,7 +222,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    * @returns - Promise resolving to allowance number
    */
   private async getERC20Allowance(contractAddress: string, walletAddress: string): Promise<number> {
-    console.log('getERC20Allowance', this.web3);
     const contract = this.web3.eth.contract(abiERC20).at(contractAddress);
     return new Promise<number>((resolve, reject) => {
       contract.allowance(walletAddress, (error: Error, result: number) => {
