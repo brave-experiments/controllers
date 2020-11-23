@@ -1,7 +1,8 @@
 import BigNumber from 'bignumber.js';
 import { getOnce } from 'fetch-mock';
-import { APIType } from '../src/swaps/SwapsInterfaces';
+import { APIType, SwapsToken } from '../src/swaps/SwapsInterfaces';
 import * as swapsUtil from '../src/swaps/SwapsUtil';
+import { ETH_SWAPS_TOKEN_OBJECT } from '../src/swaps/SwapsUtil';
 
 const API_TRADES = [
   {
@@ -73,6 +74,38 @@ const API_TRADES = [
     priceSlippage: { ratio: 1.0027216076907874, calculationError: '', bucket: 'low' },
   },
 ];
+
+const API_TOKENS: SwapsToken[] = [
+  {
+    address: '0x6b175474e89094c44da98b954eedeac495271d0f',
+    symbol: 'DAI',
+    decimals: 18,
+    occurances: 30,
+    iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmNYVMm3iC7HEoxfvxsZbRoapdjDHj9EREFac4BPeVphSJ',
+  },
+  {
+    address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+    symbol: 'USDT',
+    decimals: 6,
+    occurances: 30,
+    iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmR3TGmDDdmid99ExTHwPiKro4njZhSidbjcTbSrS5rHnq',
+  },
+  {
+    address: '0x8e870d67f660d95d5be530380d0ec0bd388289e1',
+    symbol: 'PAX',
+    decimals: 18,
+    occurances: 30,
+    iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmQTzo6Ecdn54x7NafwegjLetAnno1ATL9Y8M3PcVXGVhR',
+  },
+];
+
+const FAKE_SWAPS_TOKEN = {
+  address: '0x0000000000000000000000000000000000000000',
+  symbol: 'fakeswap',
+  decimals: 18,
+  occurances: 30,
+  iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmQTzo6Ecdn54x7NafwegjLetAnno1ATL9Y8M3PcVXGVhR',
+};
 
 describe('SwapsUtil', () => {
   describe('getBaseApiURL', () => {
@@ -172,15 +205,27 @@ describe('SwapsUtil', () => {
 
   describe('fetchTokens', () => {
     it('should work', async () => {
-      // TODO(wachunei): this is actually performing a fetch request to production server
+      getOnce(
+        `https://api.metaswap.codefi.network/tokens`,
+        () => ({
+          body: JSON.stringify(API_TOKENS.concat([FAKE_SWAPS_TOKEN])),
+        }),
+        { overwriteRoutes: true, method: 'GET' },
+      );
       const tokens = await swapsUtil.fetchTokens();
-      expect(tokens).toBeInstanceOf(Array);
+      expect(tokens).toEqual(API_TOKENS.concat([ETH_SWAPS_TOKEN_OBJECT]));
     });
   });
 
   describe('fetchAggregatorMetadata', () => {
     it('should work', async () => {
-      // TODO(wachunei): this is actually performing a fetch request to production server
+      getOnce(
+        `https://api.metaswap.codefi.network/aggregatorMetadata`,
+        () => ({
+          body: JSON.stringify(API_TRADES),
+        }),
+        { overwriteRoutes: true, method: 'GET' },
+      );
       const aggregatorsMetadata = await swapsUtil.fetchAggregatorMetadata();
       expect(aggregatorsMetadata).toBeInstanceOf(Object);
     });
@@ -188,7 +233,13 @@ describe('SwapsUtil', () => {
 
   describe('fetchTopAssets', () => {
     it('should work', async () => {
-      // TODO(wachunei): this is actually performing a fetch request to production server
+      getOnce(
+        `https://api.metaswap.codefi.network/topAssets`,
+        () => ({
+          body: JSON.stringify(API_TRADES),
+        }),
+        { overwriteRoutes: true, method: 'GET' },
+      );
       const assets = await swapsUtil.fetchTopAssets();
       expect(assets).toBeTruthy();
       expect(assets).toBeInstanceOf(Array);
@@ -197,7 +248,13 @@ describe('SwapsUtil', () => {
 
   describe('fetchSwapsFeatureLiveness', () => {
     it('should work', async () => {
-      // TODO(wachunei): this is actually performing a fetch request to production server
+      getOnce(
+        `https://api.metaswap.codefi.network/featureFlag`,
+        () => ({
+          body: JSON.stringify({ active: true }),
+        }),
+        { overwriteRoutes: true, method: 'GET' },
+      );
       const featureLiveness = await swapsUtil.fetchSwapsFeatureLiveness();
       expect(typeof featureLiveness).toBe('boolean');
     });
@@ -206,23 +263,17 @@ describe('SwapsUtil', () => {
   describe('fetchTokenPrice', () => {
     it('should work', async () => {
       const address = '0x6b175474e89094c44da98b954eedeac495271d0f';
-      // TODO(wachunei): this is actually performing a fetch request to coingecko
+      getOnce(
+        `https://api.coingecko.com/api/v3/simple/token_price/ethereum?contract_addresses=0x6b175474e89094c44da98b954eedeac495271d0f&vs_currencies=eth`,
+        () => ({
+          body: JSON.stringify({ '0x6b175474e89094c44da98b954eedeac495271d0f': { eth: 0.00168682 } }),
+        }),
+        { overwriteRoutes: true, method: 'GET' },
+      );
       const ethPrice = await swapsUtil.fetchTokenPrice(address);
       expect(ethPrice).toBeTruthy();
       expect(typeof ethPrice).toBe('number');
     });
-  });
-
-  describe('getRenderableNetworkFeesForQuote', () => {
-    it.todo('should work');
-  });
-
-  describe('quotesToRenderableData', () => {
-    it.todo('should work');
-  });
-
-  describe('getSwapsTokensReceivedFromTxMeta', () => {
-    it.todo('should work');
   });
 
   describe('calculateGasEstimateWithRefund', () => {
