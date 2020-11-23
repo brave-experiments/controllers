@@ -1,6 +1,5 @@
 import BigNumber from 'bignumber.js';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import NetworkController from '../network/NetworkController';
 import TokenRatesController from '../assets/TokenRatesController';
 import { calcTokenAmount, estimateGas, query } from '../util';
 import { Transaction } from '../transaction/TransactionController';
@@ -37,6 +36,7 @@ export interface SwapsConfig extends BaseConfig {
   metaSwapAddress: string;
   fetchTokensThreshold: number;
   quotePollingInterval: number;
+  provider: any;
 }
 
 export interface SwapsState extends BaseState {
@@ -222,6 +222,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    * @returns - Promise resolving to allowance number
    */
   private async getERC20Allowance(contractAddress: string, walletAddress: string): Promise<number> {
+    console.log('getERC20Allowance', this.web3);
     const contract = this.web3.eth.contract(abiERC20).at(contractAddress);
     return new Promise<number>((resolve, reject) => {
       contract.allowance(walletAddress, (error: Error, result: number) => {
@@ -268,7 +269,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
   /**
    * List of required sibling controllers this controller needs to function
    */
-  requiredControllers = ['NetworkController', 'TokenRatesController'];
+  requiredControllers = ['TokenRatesController'];
 
   /**
    * Creates a SwapsController instance
@@ -284,6 +285,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       metaSwapAddress: SWAPS_CONTRACT_ADDRESS,
       fetchTokensThreshold: 1000 * 60 * 60 * 24,
       quotePollingInterval: QUOTE_POLLING_INTERVAL,
+      provider: undefined,
     };
     this.defaultState = {
       quotes: {},
@@ -319,21 +321,11 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     this.initialize();
   }
 
-  /**
-   * Extension point called if and when this controller is composed
-   * with other controllers using a ComposableController
-   */
-  onComposed() {
-    super.onComposed();
-    const network = this.context.NetworkController as NetworkController;
-    const onProviderUpdate = () => {
-      if (network.provider) {
-        this.ethQuery = new EthQuery(network.provider);
-        this.web3 = new Web3(network.provider);
-      }
-    };
-    onProviderUpdate();
-    network.subscribe(onProviderUpdate);
+  set provider(provider: any) {
+    if (provider) {
+      this.ethQuery = new EthQuery(provider);
+      this.web3 = new Web3(provider);
+    }
   }
 
   setSwapsTokens(newTokens: null | SwapsToken[]) {
@@ -511,7 +503,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       this.setSwapsErrorKey(SwapsError.QUOTES_EXPIRED_ERROR);
       return null;
     }
-
+    console.log('AAAAAAAAAA', quotes, topAggId);
     return [quotes, topAggId];
   }
 
