@@ -290,11 +290,15 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       fetchParams: {
         slippage: 0,
         sourceToken: '',
-        sourceAmount: '',
+        sourceAmount: 0,
         destinationToken: '',
         fromAddress: '',
         metaData: {
-          sourceTokenInfo: '',
+          sourceTokenInfo: {
+            decimals: 0,
+            address: '',
+            symbol: '',
+          },
           destinationTokenInfo: {
             decimals: 0,
             address: '',

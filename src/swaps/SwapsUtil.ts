@@ -142,7 +142,7 @@ export async function fetchTokenPrice(address: string): Promise<string> {
   const prices = await handleFetch(`https://api.coingecko.com/api/v3/simple/token_price/ethereum?${query}`, {
     method: 'GET',
   });
-
+  console.log('AAAAA prices[address]', prices);
   return prices && prices[address]?.eth;
 }
 

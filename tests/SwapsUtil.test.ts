@@ -133,10 +133,15 @@ describe('SwapsUtil', () => {
         slippage: 3,
         sourceToken: '0x6b175474e89094c44da98b954eedeac495271d0f',
         destinationToken: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-        sourceAmount: '1000000000000000000',
+        sourceAmount: 1000000000000000000,
         fromAddress: '0xB0dA5965D43369968574D399dBe6374683773a65',
         metaData: {
-          sourceTokenInfo: '',
+          sourceTokenInfo: {
+            address: '0x6b175474e89094c44da98b954eedeac495271d0f',
+            symbol: 'DAI',
+            decimals: 18,
+            iconUrl: 'https://foo.bar/logo.png',
+          },
           destinationTokenInfo: {
             decimals: 18,
             address: '',
@@ -271,6 +276,7 @@ describe('SwapsUtil', () => {
         { overwriteRoutes: true, method: 'GET' },
       );
       const ethPrice = await swapsUtil.fetchTokenPrice(address);
+      console.log('ethPriceethPriceethPrice', ethPrice);
       expect(ethPrice).toBeTruthy();
       expect(typeof ethPrice).toBe('number');
     });

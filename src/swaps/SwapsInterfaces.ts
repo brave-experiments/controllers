@@ -56,7 +56,7 @@ export interface SwapsAllValues {
 export interface APITradeRequest {
   sourceToken: string;
   destinationToken: string;
-  sourceAmount: string;
+  sourceAmount: number;
   slippage: number;
   excludeFees?: boolean;
   txOriginAddress?: string;
@@ -66,7 +66,7 @@ export interface APITradeRequest {
 }
 
 export interface APIFetchQuotesMetadata {
-  sourceTokenInfo: string;
+  sourceTokenInfo: SwapsToken;
   destinationTokenInfo: SwapsToken;
   accountBalance: string;
 }
@@ -74,7 +74,7 @@ export interface APIFetchQuotesMetadata {
 export interface APIFetchQuotesParams {
   slippage: number;
   sourceToken: string;
-  sourceAmount: string;
+  sourceAmount: number;
   destinationToken: string;
   fromAddress: string;
   exchangeList?: string[];
