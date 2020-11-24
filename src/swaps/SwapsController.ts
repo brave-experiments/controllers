@@ -384,8 +384,8 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     quoteGasData.forEach(({ gas, aggId }) => {
       if (gas) {
         const gasEstimateWithRefund = calculateGasEstimateWithRefund(
-          quotes[aggId].maxGas,
-          quotes[aggId].estimatedRefund,
+          quotes[aggId]?.maxGas,
+          quotes[aggId]?.estimatedRefund,
           parseInt(gas, 16),
         );
 
@@ -394,13 +394,14 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
           gasEstimate: parseInt(gas, 16),
           gasEstimateWithRefund,
         };
-      } else if (quotes[aggId].approvalNeeded) {
+      } else if (quotes[aggId]?.approvalNeeded) {
         // If gas estimation fails, but an ERC-20 approve is needed, then we do not add any estimate property to the quote object
         // Such quotes will rely on the maxGas and averageGas properties from the api
         newQuotes[aggId] = { ...quotes[aggId], gasEstimate: undefined, gasEstimateWithRefund: undefined };
       }
       // If gas estimation fails and no approval is needed, then we filter that quote out, so that it is not shown to the user
     });
+    console.log('newQuotes', newQuotes);
     return newQuotes;
   }
 
