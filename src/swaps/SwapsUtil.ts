@@ -69,7 +69,6 @@ export async function fetchTradesInfo({
   const tradeURL = `${getBaseApiURL(APIType.TRADES)}?${new URLSearchParams(urlParams as Record<any, any>).toString()}`;
 
   const tradesResponse = (await timeoutFetch(tradeURL, { method: 'GET' }, 15000)) as SwapsTrade[];
-  console.log('tradesResponse');
   const newQuotes = tradesResponse.reduce((aggIdTradeMap: { [key: string]: SwapsTrade }, quote: SwapsTrade) => {
     if (quote.trade && !quote.error) {
       const constructedTrade = constructTxParams({
@@ -101,7 +100,6 @@ export async function fetchTradesInfo({
 
     return aggIdTradeMap;
   }, {});
-  console.log('fetchTradesInfo');
 
   return newQuotes;
 }
@@ -144,7 +142,6 @@ export async function fetchTokenPrice(address: string): Promise<string> {
   const prices = await handleFetch(`https://api.coingecko.com/api/v3/simple/token_price/ethereum?${query}`, {
     method: 'GET',
   });
-  console.log('AAAAA prices[address]', prices);
   return prices && prices[address]?.eth;
 }
 

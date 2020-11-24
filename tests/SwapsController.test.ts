@@ -6,45 +6,36 @@ import TokenRatesController from '../src/assets/TokenRatesController';
 import ComposableController from '../src/ComposableController';
 import NetworkController from '../src/network/NetworkController';
 import SwapsController from '../src/swaps/SwapsController';
-// import { SwapsError } from '../src/swaps/SwapsInterfaces';
+import { SwapsError } from '../src/swaps/SwapsInterfaces';
 import PreferencesController from '../src/user/PreferencesController';
 
 const HttpProvider = require('ethjs-provider-http');
 const swapsUtil = require('../src/swaps/SwapsUtil');
 const util = require('../src/util');
 
-// const PROVIDER = new HttpProvider('https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
-// const MOCK_NETWORK = {
-//   provider: PROVIDER,
-//   state: { network: '3', provider: { type: 'ropsten' } },
-//   subscribe: () => {
-//     /* eslint-disable-line no-empty */
-//   },
-// };
-
-// const API_TOKENS = [
-//   {
-//     address: '0x6b175474e89094c44da98b954eedeac495271d0f',
-//     symbol: 'DAI',
-//     decimals: 18,
-//     occurances: 30,
-//     iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmNYVMm3iC7HEoxfvxsZbRoapdjDHj9EREFac4BPeVphSJ',
-//   },
-//   {
-//     address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
-//     symbol: 'USDT',
-//     decimals: 6,
-//     occurances: 30,
-//     iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmR3TGmDDdmid99ExTHwPiKro4njZhSidbjcTbSrS5rHnq',
-//   },
-//   {
-//     address: '0x8e870d67f660d95d5be530380d0ec0bd388289e1',
-//     symbol: 'PAX',
-//     decimals: 18,
-//     occurances: 30,
-//     iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmQTzo6Ecdn54x7NafwegjLetAnno1ATL9Y8M3PcVXGVhR',
-//   },
-// ];
+const API_TOKENS = [
+  {
+    address: '0x6b175474e89094c44da98b954eedeac495271d0f',
+    symbol: 'DAI',
+    decimals: 18,
+    occurances: 30,
+    iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmNYVMm3iC7HEoxfvxsZbRoapdjDHj9EREFac4BPeVphSJ',
+  },
+  {
+    address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+    symbol: 'USDT',
+    decimals: 6,
+    occurances: 30,
+    iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmR3TGmDDdmid99ExTHwPiKro4njZhSidbjcTbSrS5rHnq',
+  },
+  {
+    address: '0x8e870d67f660d95d5be530380d0ec0bd388289e1',
+    symbol: 'PAX',
+    decimals: 18,
+    occurances: 30,
+    iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmQTzo6Ecdn54x7NafwegjLetAnno1ATL9Y8M3PcVXGVhR',
+  },
+];
 
 const API_TRADES = {
   totle: {

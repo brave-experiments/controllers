@@ -276,7 +276,6 @@ describe('SwapsUtil', () => {
         { overwriteRoutes: true, method: 'GET' },
       );
       const ethPrice = await swapsUtil.fetchTokenPrice(address);
-      console.log('ethPriceethPriceethPrice', ethPrice);
       expect(ethPrice).toBeTruthy();
       expect(typeof ethPrice).toBe('number');
     });
