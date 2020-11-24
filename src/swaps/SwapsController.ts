@@ -255,7 +255,10 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         to: tradeTxParams.to,
         value: tradeTxParams.value,
       };
-
+      console.log(
+        'inrace estimateGas(tradeTxParamsForGasEstimate, query)',
+        estimateGas(tradeTxParamsForGasEstimate, query),
+      );
       return Promise.race([estimateGas(tradeTxParamsForGasEstimate, query), gasTimeout]);
     });
   }
@@ -365,12 +368,17 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
   }
 
   async getAllQuotesWithGasEstimates(quotes: { [key: string]: SwapsTrade }): Promise<{ [key: string]: SwapsTrade }> {
+    console.log('quoteGasDataquoteGasData', quotes.length);
     const quoteGasData = await Promise.all(
-      Object.values(quotes).map(async (quote) => {
-        const { gas } = await this.timedoutGasReturn(quote.trade);
-        return { gas, aggId: quote.aggregator };
+      Object.values(quotes).map((quote) => {
+        return new Promise<{ gas: string | null; aggId: string }>(async (resolve) => {
+          const { gas } = await this.timedoutGasReturn(quote.trade);
+          console.log('quoteGasDataquoteGasData RESOLVING ');
+          resolve({ gas, aggId: quote.aggregator });
+        });
       }),
     );
+    console.log('quoteGasDataquoteGasData 2');
     // simulation fail ?
     const newQuotes: { [key: string]: SwapsTrade } = {};
     quoteGasData.forEach(({ gas, aggId }) => {
@@ -420,8 +428,9 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
     const indexOfCurrentCall = this.indexOfNewestCallInFlight + 1;
     this.indexOfNewestCallInFlight = indexOfCurrentCall;
-
+    console.log('fetchTradesInfo(fetchParams)');
     const apiTrades: { [key: string]: SwapsTrade } = await fetchTradesInfo(fetchParams);
+    console.log('fetchTradesInfo(fetchParams) 2');
 
     // !! sourceTokenInfo and destinationTokenInfo are in state, why add it to all entries?
 
@@ -430,18 +439,18 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     let approvalRequired = false;
 
     if (fetchParams.sourceToken !== ETH_SWAPS_TOKEN_ADDRESS && Object.values(apiTrades).length) {
+      console.log('getERC20Allowance');
       const allowance = await this.getERC20Allowance(fetchParams.sourceToken, fetchParams.fromAddress);
+      console.log('getERC20Allowance 2');
 
       // For a user to be able to swap a token, they need to have approved the MetaSwap contract to withdraw that token.
       // getERC20Allowance() returns the amount of the token they have approved for withdrawal. If that amount is greater
       // than 0, it means that approval has already occured and is not needed. Otherwise, for tokens to be swapped, a new
       // call of the ERC-20 approve method is required.
-
+      console.log('apiTradesapiTradesapiTrades', typeof apiTrades);
       approvalRequired = allowance === 0;
       if (!approvalRequired) {
-        Object(apiTrades)
-          .keys()
-          .forEach((key: string) => (apiTrades[key].approvalNeeded = null));
+        Object.keys(apiTrades).forEach((key: string) => (apiTrades[key].approvalNeeded = null));
       } else if (!isPolledRequest) {
         const quoteTrade = apiTrades[0].trade;
 
@@ -451,13 +460,12 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
           to: quoteTrade.to,
           value: quoteTrade.value,
         };
+        console.log('about to gogas');
         const { gas: approvalGas } = await this.timedoutGasReturn(transaction);
 
-        Object(apiTrades)
-          .keys()
-          .forEach((key: string) => {
-            apiTrades[key].approvalNeeded!.gas = approvalGas || DEFAULT_ERC20_APPROVE_GAS;
-          });
+        Object.keys(apiTrades).forEach((key: string) => {
+          apiTrades[key].approvalNeeded!.gas = approvalGas || DEFAULT_ERC20_APPROVE_GAS;
+        });
       }
     }
 
@@ -466,12 +474,14 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     // We can reduce time on the loading screen by only doing this after the
     // loading screen and best quote have rendered.
     if (!approvalRequired && !fetchParams?.balanceError) {
+      console.log('await this.getAllQuotesWithGasEstimates');
       quotes = await this.getAllQuotesWithGasEstimates(apiTrades);
     }
 
     if (Object.values(quotes).length === 0) {
       this.setSwapsErrorKey(SwapsError.QUOTES_NOT_AVAILABLE_ERROR);
     } else {
+      console.log('await this.findBestQuoteAndCalulateSavings');
       const topQuoteData = await this.findBestQuoteAndCalulateSavings(quotes, customGasPrice);
 
       if (topQuoteData?.topAggId) {

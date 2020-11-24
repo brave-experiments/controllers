@@ -67,6 +67,8 @@ export async function fetchTradesInfo({
   }
 
   const tradeURL = `${getBaseApiURL(APIType.TRADES)}?${new URLSearchParams(urlParams as Record<any, any>).toString()}`;
+
+  console.log('tradeURL', tradeURL);
   const tradesResponse = (await timeoutFetch(tradeURL, { method: 'GET' }, 15000)) as SwapsTrade[];
 
   const newQuotes = tradesResponse.reduce((aggIdTradeMap: { [key: string]: SwapsTrade }, quote: SwapsTrade) => {

@@ -518,6 +518,7 @@ export async function query(method: string, ethQuery: any, args: any[] = []): Pr
  * @returns - Promise resolving to an object containing gas and gasPrice
  */
 export async function estimateGas(transaction: Transaction, ethQuery: any) {
+  console.log('GAGAGAGAAGAGGA', 'estimateGas');
   const estimatedTransaction = { ...transaction };
   const { gasLimit } = await query('getBlockByNumber', ethQuery, ['latest']);
   const { gas, gasPrice: providedGasPrice, to, value, data } = estimatedTransaction;
