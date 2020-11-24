@@ -99,6 +99,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     let ethFeeForBestQuote: BigNumber = new BigNumber(0);
 
     const usedGasPrice = customGasPrice || (await this.getGasPrice());
+
     const quotesValues = Object.values(quotes).map((quote) => quote);
     quotesValues.forEach((quote: SwapsTrade) => {
       const {
@@ -127,6 +128,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       // It always includes any external fees charged by the quote source. In
       // addition, if the source asset is ETH, trade.value includes the amount
       // of swapped ETH.
+
       const totalWeiCost = new BigNumber(gasTotalInWeiHex, 16).plus(trade.value, 16);
 
       // The total fee is aggregator/exchange fees plus gas fees.
@@ -430,7 +432,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     this.indexOfNewestCallInFlight = indexOfCurrentCall;
 
     const apiTrades: { [key: string]: SwapsTrade } = await fetchTradesInfo(fetchParams);
-
     // !! sourceTokenInfo and destinationTokenInfo are in state, why add it to all entries?
 
     const quotesLastFetched = Date.now();
@@ -465,7 +466,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         });
       }
     }
-
     let topAggId = null;
     let quotes: { [key: string]: SwapsTrade } = {};
     // We can reduce time on the loading screen by only doing this after the
@@ -477,7 +477,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     if (Object.values(quotes).length === 0) {
       this.setSwapsErrorKey(SwapsError.QUOTES_NOT_AVAILABLE_ERROR);
     } else {
-      console.log('await this.findBestQuoteAndCalulateSavings');
       const topQuoteData = await this.findBestQuoteAndCalulateSavings(quotes, customGasPrice);
 
       if (topQuoteData?.topAggId) {
@@ -508,7 +507,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       this.setSwapsErrorKey(SwapsError.QUOTES_EXPIRED_ERROR);
       return null;
     }
-    console.log('AAAAAAAAAA', quotes, topAggId);
+    console.log('quotes, topAggId', quotes, topAggId);
     return [quotes, topAggId];
   }
 
