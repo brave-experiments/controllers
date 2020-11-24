@@ -261,142 +261,142 @@ describe('SwapsController', () => {
     estimateGas.restore();
   });
 
-  // it('should set default config', () => {
-  //   expect(swapsController.config).toEqual({
-  //     maxGasLimit: 2500000,
-  //     pollCountLimit: 3,
-  //     metaSwapAddress: '0x881d40237659c251811cec9c364ef91dc08d300c',
-  //     fetchTokensThreshold: 86400000,
-  //     quotePollingInterval: 10,
-  //   });
-  // });
+  it('should set default config', () => {
+    expect(swapsController.config).toEqual({
+      maxGasLimit: 2500000,
+      pollCountLimit: 3,
+      metaSwapAddress: '0x881d40237659c251811cec9c364ef91dc08d300c',
+      fetchTokensThreshold: 86400000,
+      quotePollingInterval: 10,
+    });
+  });
 
-  // it('should set default state', () => {
-  //   expect(swapsController.state).toEqual({
-  //     quotes: {},
-  //     fetchParams: {
-  //       slippage: 0,
-  //       sourceToken: '',
-  //       sourceAmount: 0,
-  //       destinationToken: '',
-  //       fromAddress: '',
-  //       metaData: {
-  //         sourceTokenInfo: {
-  //           decimals: 0,
-  //           address: '',
-  //           symbol: '',
-  //         },
-  //         destinationTokenInfo: {
-  //           decimals: 0,
-  //           address: '',
-  //           symbol: '',
-  //         },
-  //         accountBalance: '0x',
-  //       },
-  //     },
-  //     tokens: null,
-  //     quotesLastFetched: 0,
-  //     errorKey: null,
-  //     topAggId: null,
-  //     swapsFeatureIsLive: false,
-  //     tokensLastFetched: 0,
-  //   });
-  // });
+  it('should set default state', () => {
+    expect(swapsController.state).toEqual({
+      quotes: {},
+      fetchParams: {
+        slippage: 0,
+        sourceToken: '',
+        sourceAmount: 0,
+        destinationToken: '',
+        fromAddress: '',
+        metaData: {
+          sourceTokenInfo: {
+            decimals: 0,
+            address: '',
+            symbol: '',
+          },
+          destinationTokenInfo: {
+            decimals: 0,
+            address: '',
+            symbol: '',
+          },
+          accountBalance: '0x',
+        },
+      },
+      tokens: null,
+      quotesLastFetched: 0,
+      errorKey: null,
+      topAggId: null,
+      swapsFeatureIsLive: false,
+      tokensLastFetched: 0,
+    });
+  });
 
-  // it('should set tokens', () => {
-  //   swapsController.setSwapsTokens(API_TOKENS);
-  //   expect(swapsController.state.tokens).toEqual(API_TOKENS);
-  // });
+  it('should set tokens', () => {
+    swapsController.setSwapsTokens(API_TOKENS);
+    expect(swapsController.state.tokens).toEqual(API_TOKENS);
+  });
 
-  // it('should set error key', () => {
-  //   swapsController.setSwapsErrorKey(SwapsError.ERROR_FETCHING_QUOTES);
-  //   expect(swapsController.state.errorKey).toEqual(SwapsError.ERROR_FETCHING_QUOTES);
-  // });
+  it('should set error key', () => {
+    swapsController.setSwapsErrorKey(SwapsError.ERROR_FETCHING_QUOTES);
+    expect(swapsController.state.errorKey).toEqual(SwapsError.ERROR_FETCHING_QUOTES);
+  });
 
-  // it('should set quotes last fetched', () => {
-  //   swapsController.setQuotesLastFetched(123);
-  //   expect(swapsController.state.quotesLastFetched).toEqual(123);
-  // });
+  it('should set quotes last fetched', () => {
+    swapsController.setQuotesLastFetched(123);
+    expect(swapsController.state.quotesLastFetched).toEqual(123);
+  });
 
-  // it('should set swaps liveness', () => {
-  //   swapsController.setSwapsLiveness(true);
-  //   expect(swapsController.state.swapsFeatureIsLive).toEqual(true);
-  // });
+  it('should set swaps liveness', () => {
+    swapsController.setSwapsLiveness(true);
+    expect(swapsController.state.swapsFeatureIsLive).toEqual(true);
+  });
 
-  // it('should call poll', () => {
-  //   return new Promise((resolve) => {
-  //     const poll = stub(swapsController, 'fetchAndSetQuotes');
-  //     swapsController.pollForNewQuotes();
-  //     expect(poll.called).toBe(true);
-  //     expect(poll.calledTwice).toBe(false);
-  //     setTimeout(() => {
-  //       expect(poll.calledTwice).toBe(true);
-  //       swapsController.stopPollingForQuotes();
-  //       resolve();
-  //     }, 11);
-  //   });
-  // });
+  it('should call poll', () => {
+    return new Promise((resolve) => {
+      const poll = stub(swapsController, 'fetchAndSetQuotes');
+      swapsController.pollForNewQuotes();
+      expect(poll.called).toBe(true);
+      expect(poll.calledTwice).toBe(false);
+      setTimeout(() => {
+        expect(poll.calledTwice).toBe(true);
+        swapsController.stopPollingForQuotes();
+        resolve();
+      }, 11);
+    });
+  });
 
-  // it('should stop polling', () => {
-  //   return new Promise((resolve) => {
-  //     const poll = stub(swapsController, 'fetchAndSetQuotes');
-  //     swapsController.pollForNewQuotes();
-  //     expect(poll.called).toBe(true);
-  //     expect(poll.calledTwice).toBe(false);
-  //     setTimeout(() => {
-  //       expect(poll.calledTwice).toBe(true);
-  //       swapsController.stopPollingForQuotes();
-  //       setTimeout(() => {
-  //         expect(poll.calledThrice).toBe(false);
-  //       }, 11);
-  //       resolve();
-  //     }, 11);
-  //   });
-  // });
+  it('should stop polling', () => {
+    return new Promise((resolve) => {
+      const poll = stub(swapsController, 'fetchAndSetQuotes');
+      swapsController.pollForNewQuotes();
+      expect(poll.called).toBe(true);
+      expect(poll.calledTwice).toBe(false);
+      setTimeout(() => {
+        expect(poll.calledTwice).toBe(true);
+        swapsController.stopPollingForQuotes();
+        setTimeout(() => {
+          expect(poll.calledThrice).toBe(false);
+        }, 11);
+        resolve();
+      }, 11);
+    });
+  });
 
-  // it('should fetch tokens when no tokens in state', () => {
-  //   return new Promise(async (resolve) => {
-  //     swapsController.state.tokens = null;
-  //     await swapsController.fetchTokenWithCache();
-  //     expect(swapsUtilFetchTokens.called).toBe(true);
-  //     resolve();
-  //   });
-  // });
+  it('should fetch tokens when no tokens in state', () => {
+    return new Promise(async (resolve) => {
+      swapsController.state.tokens = null;
+      await swapsController.fetchTokenWithCache();
+      expect(swapsUtilFetchTokens.called).toBe(true);
+      resolve();
+    });
+  });
 
-  // it('should fetch tokens when no threshold reached', () => {
-  //   return new Promise(async (resolve) => {
-  //     swapsController.state.tokens = [];
-  //     swapsController.state.tokensLastFetched = Date.now();
-  //     await swapsController.fetchTokenWithCache();
-  //     expect(swapsUtilFetchTokens.called).toBe(false);
-  //     setTimeout(async () => {
-  //       await swapsController.fetchTokenWithCache();
-  //       expect(swapsUtilFetchTokens.called).toBe(true);
-  //     }, 20);
-  //     resolve();
-  //   });
-  // });
+  it('should fetch tokens when no threshold reached', () => {
+    return new Promise(async (resolve) => {
+      swapsController.state.tokens = [];
+      swapsController.state.tokensLastFetched = Date.now();
+      await swapsController.fetchTokenWithCache();
+      expect(swapsUtilFetchTokens.called).toBe(false);
+      setTimeout(async () => {
+        await swapsController.fetchTokenWithCache();
+        expect(swapsUtilFetchTokens.called).toBe(true);
+      }, 20);
+      resolve();
+    });
+  });
 
-  // it('should not fetch tokens when no threshold reached or tokens are available', () => {
-  //   return new Promise(async (resolve) => {
-  //     swapsController.state.tokens = [];
-  //     swapsController.state.tokensLastFetched = Date.now();
-  //     await swapsController.fetchTokenWithCache();
-  //     expect(swapsUtilFetchTokens.called).toBe(false);
-  //     resolve();
-  //   });
-  // });
+  it('should not fetch tokens when no threshold reached or tokens are available', () => {
+    return new Promise(async (resolve) => {
+      swapsController.state.tokens = [];
+      swapsController.state.tokensLastFetched = Date.now();
+      await swapsController.fetchTokenWithCache();
+      expect(swapsUtilFetchTokens.called).toBe(false);
+      resolve();
+    });
+  });
 
-  // it('should refetch quotes', () => {
-  //   return new Promise(async (resolve) => {
-  //     const poll = stub(swapsController, 'fetchAndSetQuotes');
-  //     await swapsController.safeRefetchQuotes();
-  //     expect(poll.called).toBe(true);
-  //     resolve();
-  //   });
-  // });
+  it('should refetch quotes', () => {
+    return new Promise(async (resolve) => {
+      const poll = stub(swapsController, 'fetchAndSetQuotes');
+      await swapsController.safeRefetchQuotes();
+      expect(poll.called).toBe(true);
+      resolve();
+    });
+  });
 
-  it('should refessstch quotes', () => {
+  it('should fetch and set quotes', () => {
     const fetchParams = {
       slippage: 3,
       sourceToken: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
@@ -422,8 +422,10 @@ describe('SwapsController', () => {
 
     swapsController.configure({ provider: HttpProvider });
     return new Promise(async (resolve) => {
-      await swapsController.fetchAndSetQuotes(fetchParams, fetchParams.metaData);
-      // expect(poll.called).toBe(true);
+      const res = await swapsController.fetchAndSetQuotes(fetchParams, fetchParams.metaData);
+      expect(res).toBeTruthy();
+      expect(swapsController.state.quotes).toEqual(res && res[0]);
+      expect(swapsController.state.topAggId).toEqual(res && res[1]);
       resolve();
     });
   });

@@ -61,7 +61,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
   private ethQuery: any;
 
-  private pollCount = 0;
+  // private pollCount = 0;
 
   private indexOfNewestCallInFlight: number;
 
@@ -411,15 +411,15 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     fetchParamsMetaData: APIFetchQuotesMetadata,
     isPolledRequest?: boolean,
     customGasPrice?: string,
-  ) {
+  ): Promise<[{ [key: string]: SwapsTrade }, string | null] | null> {
     if (!fetchParams) {
       return null;
     }
 
     // Every time we get a new request that is not from the polling, we reset the poll count so we can poll for up to three more sets of quotes with these new params.
-    if (!isPolledRequest) {
-      this.pollCount = 0;
-    }
+    // if (!isPolledRequest) {
+    //   this.pollCount = 0;
+    // }
 
     // If there are any pending poll requests, clear them so that they don't get call while this new fetch is in process
     this.handle && clearTimeout(this.handle);
@@ -500,14 +500,15 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     });
 
     // We only want to do up to a maximum of three requests from polling.
-    this.pollCount += 1;
-    if (this.pollCount < this.config.pollCountLimit + 1) {
-      this.pollForNewQuotes();
-    } else {
-      this.setSwapsErrorKey(SwapsError.QUOTES_EXPIRED_ERROR);
-      return null;
-    }
-    console.log('quotes, topAggId', quotes, topAggId);
+    // ??
+    // this.pollCount += 1;
+    // if (this.pollCount < this.config.pollCountLimit + 1) {
+    //   this.pollForNewQuotes();
+    // } else {
+    //   this.setSwapsErrorKey(SwapsError.QUOTES_EXPIRED_ERROR);
+    //   return null;
+    // }
+
     return [quotes, topAggId];
   }
 
