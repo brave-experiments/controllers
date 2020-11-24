@@ -74,7 +74,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    */
   private async getGasPrice(): Promise<string> {
     const gasPrice = await query('gasPrice', this.ethQuery);
-    return gasPrice.toHexString();
+    return gasPrice;
   }
 
   /**
@@ -401,7 +401,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       }
       // If gas estimation fails and no approval is needed, then we filter that quote out, so that it is not shown to the user
     });
-    console.log('newQuotes', newQuotes);
     return newQuotes;
   }
 
