@@ -502,6 +502,7 @@ export function calcTokenAmount(value: number, decimals: number) {
 export async function query(method: string, ethQuery: any, args: any[] = []): Promise<any> {
   return new Promise((resolve, reject) => {
     ethQuery[method](...args, (error: Error, result: any) => {
+      /* istanbul ignore next */
       if (error) {
         reject(error);
         return;

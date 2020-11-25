@@ -87,7 +87,6 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
    * @property provider - Provider used to create a new underlying Web3 instance
    */
   set provider(provider: any) {
-    console.log('setprovider in network', provider);
     this.web3 = new Web3(provider);
   }
 

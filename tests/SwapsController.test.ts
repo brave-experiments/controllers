@@ -201,7 +201,7 @@ jest.mock('web3', () =>
           return {
             at: () => {
               return {
-                allowance: (_: string, callback: any) => callback(undefined, 1),
+                allowance: (_: string, __: string, callback: any) => callback(undefined, 1),
               };
             },
           };

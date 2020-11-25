@@ -226,7 +226,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
   private async getERC20Allowance(contractAddress: string, walletAddress: string): Promise<number> {
     const contract = this.web3.eth.contract(abiERC20).at(contractAddress);
     return new Promise<number>((resolve, reject) => {
-      contract.allowance(walletAddress, (error: Error, result: number) => {
+      contract.allowance(walletAddress, SWAPS_CONTRACT_ADDRESS, (error: Error, result: number) => {
         /* istanbul ignore if */
         if (error) {
           reject(error);
@@ -261,7 +261,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         value: tradeTxParams.value,
       };
       const gas: { gas: string | null } = (await Promise.race([
-        estimateGas(tradeTxParamsForGasEstimate, query),
+        estimateGas(tradeTxParamsForGasEstimate, this.ethQuery),
         gasTimeout,
       ])) as { gas: string | null };
       resolve(gas);
