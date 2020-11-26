@@ -48,6 +48,7 @@ export interface SwapsState extends BaseState {
   topAggId: null | string;
   swapsFeatureIsLive: boolean;
   tokensLastFetched: number;
+  customGasPrice?: string;
 }
 
 const QUOTE_POLLING_INTERVAL = 50 * 1000;
@@ -61,11 +62,13 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
   private ethQuery: any;
 
-  // private pollCount = 0;
+  private pollCount = 0;
 
   private indexOfNewestCallInFlight: number;
 
   private mutex = new Mutex();
+
+  // loading --- quantities left or if your in the last one -- fetch
 
   /**
    * Fetch current gas price
@@ -356,12 +359,17 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    *
    */
   pollForNewQuotes() {
-    const { fetchParams } = this.state;
-    this.handle && clearTimeout(this.handle);
-    this.fetchAndSetQuotes(fetchParams, fetchParams.metaData, true);
-    this.handle = setTimeout(() => {
-      this.fetchAndSetQuotes(fetchParams, fetchParams.metaData, true);
-    }, this.config.quotePollingInterval);
+    // We only want to do up to a maximum of three requests from polling.
+    this.pollCount += 1;
+    if (this.pollCount < this.config.pollCountLimit + 1) {
+      this.handle && clearTimeout(this.handle);
+      this.fetchAndSetQuotes(true);
+      this.handle = setTimeout(() => {
+        this.pollForNewQuotes();
+      }, this.config.quotePollingInterval);
+    } else {
+      this.setSwapsErrorKey(SwapsError.QUOTES_EXPIRED_ERROR);
+    }
   }
 
   /**
@@ -406,27 +414,8 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     return newQuotes;
   }
 
-  async fetchAndSetQuotes(
-    fetchParams: APIFetchQuotesParams,
-    fetchParamsMetaData: APIFetchQuotesMetadata,
-    isPolledRequest?: boolean,
-    customGasPrice?: string,
-  ): Promise<[{ [key: string]: SwapsTrade }, string | null] | null> {
-    if (!fetchParams) {
-      return null;
-    }
-
-    // Every time we get a new request that is not from the polling, we reset the poll count so we can poll for up to three more sets of quotes with these new params.
-    // if (!isPolledRequest) {
-    //   this.pollCount = 0;
-    // }
-
-    // If there are any pending poll requests, clear them so that they don't get call while this new fetch is in process
-    this.handle && clearTimeout(this.handle);
-
-    if (!isPolledRequest) {
-      this.setSwapsErrorKey(null);
-    }
+  async fetchAndSetQuotes(isPolledRequest?: boolean): Promise<void> {
+    const { fetchParams, customGasPrice } = this.state;
 
     const indexOfCurrentCall = this.indexOfNewestCallInFlight + 1;
     this.indexOfNewestCallInFlight = indexOfCurrentCall;
@@ -494,22 +483,27 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
     this.update({
       quotes,
-      fetchParams: { ...fetchParams, metaData: fetchParamsMetaData },
       quotesLastFetched,
       topAggId,
     });
+  }
 
-    // We only want to do up to a maximum of three requests from polling.
-    // ??
-    // this.pollCount += 1;
-    // if (this.pollCount < this.config.pollCountLimit + 1) {
-    //   this.pollForNewQuotes();
-    // } else {
-    //   this.setSwapsErrorKey(SwapsError.QUOTES_EXPIRED_ERROR);
-    //   return null;
-    // }
+  startFetchAndSetQuotes(
+    fetchParams: APIFetchQuotesParams,
+    fetchParamsMetaData: APIFetchQuotesMetadata,
+    customGasPrice?: string,
+  ) {
+    if (!fetchParams) {
+      return null;
+    }
+    // Every time we get a new request that is not from the polling, we reset the poll count so we can poll for up to three more sets of quotes with these new params.
+    this.pollCount = 0;
 
-    return [quotes, topAggId];
+    this.update({
+      customGasPrice,
+      fetchParams: { ...fetchParams, metaData: fetchParamsMetaData },
+    });
+    this.pollForNewQuotes();
   }
 
   async fetchTokenWithCache() {
@@ -527,7 +521,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
   safeRefetchQuotes() {
     const { fetchParams } = this.state;
     if (!this.handle && fetchParams) {
-      this.fetchAndSetQuotes(fetchParams, fetchParams.metaData);
+      this.fetchAndSetQuotes();
     }
   }
 }
