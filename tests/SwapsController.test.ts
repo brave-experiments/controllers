@@ -160,6 +160,29 @@ const API_TRADES = {
   },
 };
 
+const FETCH_PARAMS = {
+  slippage: 3,
+  sourceToken: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+  destinationToken: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+  sourceAmount: 10000000000000000,
+  fromAddress: '0xb0da5965d43369968574d399dbe6374683773a65',
+  balanceError: undefined,
+  metaData: {
+    sourceTokenInfo: {
+      address: '0x6b175474e89094c44da98b954eedeac495271d0f',
+      symbol: 'DAI',
+      decimals: 18,
+      iconUrl: 'https://foo.bar/logo.png',
+    },
+    destinationTokenInfo: {
+      address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+      symbol: 'USDC',
+      decimals: 18,
+    },
+    accountBalance: '0x0',
+  },
+};
+
 const mockFlags: { [key: string]: any } = {
   estimateGas: null,
 };
@@ -414,35 +437,25 @@ describe('SwapsController', () => {
   });
 
   it('should start fetch and set quotes', () => {
-    const fetchParams = {
-      slippage: 3,
-      sourceToken: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-      destinationToken: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-      sourceAmount: 10000000000000000,
-      fromAddress: '0xb0da5965d43369968574d399dbe6374683773a65',
-      balanceError: undefined,
-      metaData: {
-        sourceTokenInfo: {
-          address: '0x6b175474e89094c44da98b954eedeac495271d0f',
-          symbol: 'DAI',
-          decimals: 18,
-          iconUrl: 'https://foo.bar/logo.png',
-        },
-        destinationTokenInfo: {
-          address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-          symbol: 'USDC',
-          decimals: 18,
-        },
-        accountBalance: '0x0',
-      },
-    };
     const pollForNewQuotes = stub(swapsController, 'pollForNewQuotes');
     swapsController.configure({ provider: HttpProvider });
     return new Promise(async (resolve) => {
-      await swapsController.startFetchAndSetQuotes(fetchParams, fetchParams.metaData, '0x12');
-      expect(swapsController.state.fetchParams).toEqual(fetchParams);
+      await swapsController.startFetchAndSetQuotes(FETCH_PARAMS, FETCH_PARAMS.metaData, '0x12');
+      expect(swapsController.state.fetchParams).toEqual(FETCH_PARAMS);
       expect(swapsController.state.customGasPrice).toEqual('0x12');
       expect(pollForNewQuotes.called).toBe(true);
+      resolve();
+    });
+  });
+
+  it('should fetch and set quotes', () => {
+    swapsController.configure({ provider: HttpProvider });
+    swapsController.state.fetchParams = FETCH_PARAMS;
+    return new Promise(async (resolve) => {
+      await swapsController.fetchAndSetQuotes();
+      expect(swapsController.state.fetchParams).toEqual(FETCH_PARAMS);
+      expect(swapsController.state.quotes).toBeTruthy();
+      expect(swapsController.state.topAggId).toBeTruthy();
       resolve();
     });
   });
