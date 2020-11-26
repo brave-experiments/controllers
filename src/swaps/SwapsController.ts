@@ -49,6 +49,9 @@ export interface SwapsState extends BaseState {
   swapsFeatureIsLive: boolean;
   tokensLastFetched: number;
   customGasPrice?: string;
+  isInPolling: boolean;
+  isInFetch: boolean;
+  pollingCyclesLeft: number;
 }
 
 const QUOTE_POLLING_INTERVAL = 50 * 1000;
@@ -325,6 +328,9 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       topAggId: null,
       swapsFeatureIsLive: false,
       tokensLastFetched: 0,
+      isInPolling: false,
+      isInFetch: false,
+      pollingCyclesLeft: config?.pollCountLimit || 3,
     };
     this.indexOfNewestCallInFlight = 0;
 
@@ -362,12 +368,14 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     // We only want to do up to a maximum of three requests from polling.
     this.pollCount += 1;
     if (this.pollCount < this.config.pollCountLimit + 1) {
+      this.update({ isInPolling: true, pollingCyclesLeft: this.config.pollCountLimit - this.pollCount });
       this.handle && clearTimeout(this.handle);
       this.fetchAndSetQuotes(true);
       this.handle = setTimeout(() => {
         this.pollForNewQuotes();
       }, this.config.quotePollingInterval);
     } else {
+      this.update({ isInPolling: false, isInFetch: false, pollingCyclesLeft: 0 });
       this.setSwapsErrorKey(SwapsError.QUOTES_EXPIRED_ERROR);
     }
   }
@@ -416,76 +424,81 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
   async fetchAndSetQuotes(isPolledRequest?: boolean): Promise<void> {
     const { fetchParams, customGasPrice } = this.state;
+    this.update({ isInFetch: true });
+    try {
+      const indexOfCurrentCall = this.indexOfNewestCallInFlight + 1;
+      this.indexOfNewestCallInFlight = indexOfCurrentCall;
 
-    const indexOfCurrentCall = this.indexOfNewestCallInFlight + 1;
-    this.indexOfNewestCallInFlight = indexOfCurrentCall;
+      const apiTrades: { [key: string]: SwapsTrade } = await fetchTradesInfo(fetchParams);
+      // !! sourceTokenInfo and destinationTokenInfo are in state, why add it to all entries?
 
-    const apiTrades: { [key: string]: SwapsTrade } = await fetchTradesInfo(fetchParams);
-    // !! sourceTokenInfo and destinationTokenInfo are in state, why add it to all entries?
+      const quotesLastFetched = Date.now();
 
-    const quotesLastFetched = Date.now();
+      let approvalRequired = false;
 
-    let approvalRequired = false;
+      if (fetchParams.sourceToken !== ETH_SWAPS_TOKEN_ADDRESS && Object.values(apiTrades).length) {
+        const allowance = await this.getERC20Allowance(fetchParams.sourceToken, fetchParams.fromAddress);
 
-    if (fetchParams.sourceToken !== ETH_SWAPS_TOKEN_ADDRESS && Object.values(apiTrades).length) {
-      const allowance = await this.getERC20Allowance(fetchParams.sourceToken, fetchParams.fromAddress);
+        // For a user to be able to swap a token, they need to have approved the MetaSwap contract to withdraw that token.
+        // getERC20Allowance() returns the amount of the token they have approved for withdrawal. If that amount is greater
+        // than 0, it means that approval has already occured and is not needed. Otherwise, for tokens to be swapped, a new
+        // call of the ERC-20 approve method is required.
 
-      // For a user to be able to swap a token, they need to have approved the MetaSwap contract to withdraw that token.
-      // getERC20Allowance() returns the amount of the token they have approved for withdrawal. If that amount is greater
-      // than 0, it means that approval has already occured and is not needed. Otherwise, for tokens to be swapped, a new
-      // call of the ERC-20 approve method is required.
+        approvalRequired = allowance === 0;
+        if (!approvalRequired) {
+          Object.keys(apiTrades).forEach((key: string) => (apiTrades[key].approvalNeeded = null));
+        } else if (!isPolledRequest) {
+          const quoteTrade = apiTrades[0].trade;
 
-      approvalRequired = allowance === 0;
-      if (!approvalRequired) {
-        Object.keys(apiTrades).forEach((key: string) => (apiTrades[key].approvalNeeded = null));
-      } else if (!isPolledRequest) {
-        const quoteTrade = apiTrades[0].trade;
+          const transaction: Transaction = {
+            data: quoteTrade.data,
+            from: quoteTrade.from,
+            to: quoteTrade.to,
+            value: quoteTrade.value,
+          };
 
-        const transaction: Transaction = {
-          data: quoteTrade.data,
-          from: quoteTrade.from,
-          to: quoteTrade.to,
-          value: quoteTrade.value,
-        };
+          const { gas: approvalGas } = await this.timedoutGasReturn(transaction);
 
-        const { gas: approvalGas } = await this.timedoutGasReturn(transaction);
-
-        Object.keys(apiTrades).forEach((key: string) => {
-          apiTrades[key].approvalNeeded!.gas = approvalGas || DEFAULT_ERC20_APPROVE_GAS;
-        });
+          Object.keys(apiTrades).forEach((key: string) => {
+            apiTrades[key].approvalNeeded!.gas = approvalGas || DEFAULT_ERC20_APPROVE_GAS;
+          });
+        }
       }
-    }
-    let topAggId = null;
-    let quotes: { [key: string]: SwapsTrade } = {};
-    // We can reduce time on the loading screen by only doing this after the
-    // loading screen and best quote have rendered.
-    if (!approvalRequired && !fetchParams?.balanceError) {
-      quotes = await this.getAllQuotesWithGasEstimates(apiTrades);
-    }
-
-    if (Object.values(quotes).length === 0) {
-      this.setSwapsErrorKey(SwapsError.QUOTES_NOT_AVAILABLE_ERROR);
-    } else {
-      const topQuoteData = await this.findBestQuoteAndCalulateSavings(quotes, customGasPrice);
-
-      if (topQuoteData?.topAggId) {
-        topAggId = topQuoteData.topAggId;
-        quotes[topAggId].isBest = topQuoteData.isBest;
-        quotes[topAggId].savings = topQuoteData.savings;
+      let topAggId = null;
+      let quotes: { [key: string]: SwapsTrade } = {};
+      // We can reduce time on the loading screen by only doing this after the
+      // loading screen and best quote have rendered.
+      if (!approvalRequired && !fetchParams?.balanceError) {
+        quotes = await this.getAllQuotesWithGasEstimates(apiTrades);
       }
-    }
 
-    // If a newer call has been made, don't update state with old information
-    // Prevents timing conflicts between fetches
-    if (this.indexOfNewestCallInFlight !== indexOfCurrentCall) {
-      throw new Error(SwapsError.SWAPS_FETCH_ORDER_CONFLICT);
-    }
+      if (Object.values(quotes).length === 0) {
+        this.setSwapsErrorKey(SwapsError.QUOTES_NOT_AVAILABLE_ERROR);
+      } else {
+        const topQuoteData = await this.findBestQuoteAndCalulateSavings(quotes, customGasPrice);
 
-    this.update({
-      quotes,
-      quotesLastFetched,
-      topAggId,
-    });
+        if (topQuoteData?.topAggId) {
+          topAggId = topQuoteData.topAggId;
+          quotes[topAggId].isBest = topQuoteData.isBest;
+          quotes[topAggId].savings = topQuoteData.savings;
+        }
+      }
+
+      // If a newer call has been made, don't update state with old information
+      // Prevents timing conflicts between fetches
+      if (this.indexOfNewestCallInFlight !== indexOfCurrentCall) {
+        throw new Error(SwapsError.SWAPS_FETCH_ORDER_CONFLICT);
+      }
+
+      this.update({
+        quotes,
+        quotesLastFetched,
+        topAggId,
+        isInFetch: false,
+      });
+    } catch (e) {
+      this.update({ isInFetch: false, errorKey: SwapsError.ERROR_FETCHING_QUOTES });
+    }
   }
 
   startFetchAndSetQuotes(
