@@ -256,7 +256,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       }, 5000);
     });
 
-    return new Promise(async (resolve) => {
+    return new Promise(async (resolve, reject) => {
       // Remove gas from params that will be passed to the `estimateGas` call
       // Including it can cause the estimate to fail if the actual gas needed
       // exceeds the passed gas
@@ -266,11 +266,15 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         to: tradeTxParams.to,
         value: tradeTxParams.value,
       };
-      const gas: { gas: string | null } = (await Promise.race([
-        estimateGas(tradeTxParamsForGasEstimate, this.ethQuery),
-        gasTimeout,
-      ])) as { gas: string | null };
-      resolve(gas);
+      try {
+        const gas: { gas: string | null } = (await Promise.race([
+          estimateGas(tradeTxParamsForGasEstimate, this.ethQuery),
+          gasTimeout,
+        ])) as { gas: string | null };
+        resolve(gas);
+      } catch (e) {
+        reject(e);
+      }
     });
   }
 
@@ -391,9 +395,13 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
   async getAllQuotesWithGasEstimates(quotes: { [key: string]: SwapsTrade }): Promise<{ [key: string]: SwapsTrade }> {
     const quoteGasData = await Promise.all(
       Object.values(quotes).map((quote) => {
-        return new Promise<{ gas: string | null; aggId: string }>(async (resolve) => {
-          const { gas } = await this.timedoutGasReturn(quote.trade);
-          resolve({ gas, aggId: quote.aggregator });
+        return new Promise<{ gas: string | null; aggId: string }>(async (resolve, reject) => {
+          try {
+            const { gas } = await this.timedoutGasReturn(quote.trade);
+            resolve({ gas, aggId: quote.aggregator });
+          } catch (e) {
+            reject(e);
+          }
         });
       }),
     );

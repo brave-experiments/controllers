@@ -314,6 +314,9 @@ describe('SwapsController', () => {
           accountBalance: '0x',
         },
       },
+      isInFetch: false,
+      isInPolling: false,
+      pollingCyclesLeft: 3,
       tokens: null,
       quotesLastFetched: 0,
       errorKey: null,
@@ -456,6 +459,12 @@ describe('SwapsController', () => {
       expect(swapsController.state.fetchParams).toEqual(FETCH_PARAMS);
       expect(swapsController.state.quotes).toBeTruthy();
       expect(swapsController.state.topAggId).toBeTruthy();
+      expect(swapsController.state.isInFetch).toBeFalsy();
+      stub(swapsController, 'getAllQuotesWithGasEstimates').throws('ERROR');
+      await swapsController.fetchAndSetQuotes();
+      expect(swapsController.state.isInFetch).toBeFalsy();
+      expect(swapsController.state.errorKey).toEqual(SwapsError.ERROR_FETCHING_QUOTES);
+
       resolve();
     });
   });
