@@ -13,6 +13,9 @@ const HttpProvider = require('ethjs-provider-http');
 const swapsUtil = require('../src/swaps/SwapsUtil');
 const util = require('../src/util');
 
+const QUOTE_POLLING_INTERVAL = 10;
+const POLL_COUNT_LIMIT = 3;
+
 const API_TOKENS = [
   {
     address: '0x6b175474e89094c44da98b954eedeac495271d0f',
@@ -228,7 +231,10 @@ describe('SwapsController', () => {
     estimateGas = stub(util, 'estimateGas').returns(
       new Promise((resolve) => resolve({ gas: '0x5208', gasPrice: '0x5208' })),
     );
-    swapsController = new SwapsController({ quotePollingInterval: 10 });
+    swapsController = new SwapsController({
+      quotePollingInterval: QUOTE_POLLING_INTERVAL,
+      pollCountLimit: POLL_COUNT_LIMIT,
+    });
     networkController = new NetworkController();
     tokenRatesController = new TokenRatesController();
     assetsController = new AssetsController();
@@ -387,7 +393,27 @@ describe('SwapsController', () => {
     });
   });
 
-  it('should fetch and set quotes', () => {
+  it('should poll for new quotes', () => {
+    swapsController.configure({ provider: HttpProvider });
+    const fetchAndSetQuotes = stub(swapsController, 'fetchAndSetQuotes');
+    return new Promise(async (resolve) => {
+      expect(fetchAndSetQuotes.called).toBe(false);
+      await swapsController.pollForNewQuotes();
+      expect(fetchAndSetQuotes.called).toBe(true);
+      setTimeout(() => {
+        expect(fetchAndSetQuotes.calledTwice).toBe(true);
+        setTimeout(() => {
+          expect(fetchAndSetQuotes.calledThrice).toBe(true);
+          setTimeout(() => {
+            expect(swapsController.state.errorKey).toEqual(SwapsError.QUOTES_EXPIRED_ERROR);
+            resolve();
+          }, QUOTE_POLLING_INTERVAL + 1);
+        }, QUOTE_POLLING_INTERVAL + 1);
+      }, QUOTE_POLLING_INTERVAL + 1);
+    });
+  });
+
+  it('should start fetch and set quotes', () => {
     const fetchParams = {
       slippage: 3,
       sourceToken: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
@@ -410,13 +436,13 @@ describe('SwapsController', () => {
         accountBalance: '0x0',
       },
     };
-
+    const pollForNewQuotes = stub(swapsController, 'pollForNewQuotes');
     swapsController.configure({ provider: HttpProvider });
     return new Promise(async (resolve) => {
-      const res = await swapsController.fetchAndSetQuotes(fetchParams, fetchParams.metaData);
-      expect(res).toBeTruthy();
-      expect(swapsController.state.quotes).toEqual(res && res[0]);
-      expect(swapsController.state.topAggId).toEqual(res && res[1]);
+      await swapsController.startFetchAndSetQuotes(fetchParams, fetchParams.metaData, '0x12');
+      expect(swapsController.state.fetchParams).toEqual(fetchParams);
+      expect(swapsController.state.customGasPrice).toEqual('0x12');
+      expect(pollForNewQuotes.called).toBe(true);
       resolve();
     });
   });
