@@ -276,6 +276,10 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     });
   }
 
+  private stopPollingWithError(error: SwapsError) {
+    this.update({ isInPolling: false, isInFetch: false, pollingCyclesLeft: 0, errorKey: error });
+  }
+
   /**
    * Name of this controller used during composition
    */
@@ -377,17 +381,8 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         this.pollForNewQuotes();
       }, this.config.quotePollingInterval);
     } else {
-      this.update({ isInPolling: false, isInFetch: false, pollingCyclesLeft: 0 });
-      this.setSwapsErrorKey(SwapsError.QUOTES_EXPIRED_ERROR);
+      this.stopPollingWithError(SwapsError.QUOTES_EXPIRED_ERROR);
     }
-  }
-
-  /**
-   * Stops the polling process
-   *
-   */
-  stopPollingForQuotes() {
-    this.handle && clearTimeout(this.handle);
   }
 
   async getAllQuotesWithGasEstimates(quotes: { [key: string]: SwapsTrade }): Promise<{ [key: string]: SwapsTrade }> {
@@ -482,7 +477,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       }
 
       if (Object.values(quotes).length === 0) {
-        this.setSwapsErrorKey(SwapsError.QUOTES_NOT_AVAILABLE_ERROR);
+        throw new Error(SwapsError.QUOTES_NOT_AVAILABLE_ERROR);
       } else {
         const topQuoteData = await this.findBestQuoteAndCalulateSavings(quotes, customGasPrice);
 
@@ -506,8 +501,8 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         isInFetch: false,
       });
     } catch (e) {
-      this.update({ isInFetch: false, isInPolling: false, errorKey: SwapsError.ERROR_FETCHING_QUOTES });
-      throw new Error(SwapsError.ERROR_FETCHING_QUOTES);
+      const error = Object.values(SwapsError).includes(e) ? e : SwapsError.ERROR_FETCHING_QUOTES;
+      this.stopPollingWithError(error);
     }
   }
 
@@ -548,7 +543,13 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     }
   }
 
-  resetState() {
+  /**
+   * Stops the polling process
+   *
+   */
+  stopPollingAndResetState() {
+    this.handle && clearTimeout(this.handle);
+    this.pollCount = this.config.pollCountLimit + 1;
     this.update({
       ...this.defaultState,
       tokens: this.state.tokens,
