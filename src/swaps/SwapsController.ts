@@ -506,7 +506,8 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         isInFetch: false,
       });
     } catch (e) {
-      this.update({ isInFetch: false, errorKey: SwapsError.ERROR_FETCHING_QUOTES });
+      this.update({ isInFetch: false, isInPolling: false, errorKey: SwapsError.ERROR_FETCHING_QUOTES });
+      throw new Error(SwapsError.ERROR_FETCHING_QUOTES);
     }
   }
 

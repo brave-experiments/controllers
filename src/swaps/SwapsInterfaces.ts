@@ -5,7 +5,7 @@ export enum SwapsError {
   QUOTES_EXPIRED_ERROR = 'quotes-expired',
   SWAP_FAILED_ERROR = 'swap-failed-error',
   ERROR_FETCHING_QUOTES = 'error-fetching-quotes',
-  QUOTES_NOT_AVAILABLE_ERROR = 'quotes-not-avilable',
+  QUOTES_NOT_AVAILABLE_ERROR = 'quotes-not-available',
   OFFLINE_FOR_MAINTENANCE = 'offline-for-maintenance',
   SWAPS_FETCH_ORDER_CONFLICT = 'swaps-fetch-order-conflict',
 }
