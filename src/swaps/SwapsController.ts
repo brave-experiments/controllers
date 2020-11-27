@@ -25,7 +25,7 @@ import {
 
 const { Mutex } = require('await-semaphore');
 const abiERC20 = require('human-standard-token-abi');
-const EthQuery = require('eth-query');
+const EthQuery = require('ethjs-query');
 const Web3 = require('web3');
 
 // An address that the metaswap-api recognizes as ETH, in place of the token address that ERC-20 tokens have
@@ -70,8 +70,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
   private indexOfNewestCallInFlight: number;
 
   private mutex = new Mutex();
-
-  // loading --- quantities left or if your in the last one -- fetch
 
   /**
    * Fetch current gas price
@@ -374,7 +372,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     if (this.pollCount < this.config.pollCountLimit + 1) {
       this.update({ isInPolling: true, pollingCyclesLeft: this.config.pollCountLimit - this.pollCount });
       this.handle && clearTimeout(this.handle);
-      this.fetchAndSetQuotes(true);
+      this.fetchAndSetQuotes();
       this.handle = setTimeout(() => {
         this.pollForNewQuotes();
       }, this.config.quotePollingInterval);
@@ -430,7 +428,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     return newQuotes;
   }
 
-  async fetchAndSetQuotes(isPolledRequest?: boolean): Promise<void> {
+  async fetchAndSetQuotes(): Promise<void> {
     const { fetchParams, customGasPrice } = this.state;
     this.update({ isInFetch: true });
     try {
@@ -452,17 +450,20 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         // than 0, it means that approval has already occured and is not needed. Otherwise, for tokens to be swapped, a new
         // call of the ERC-20 approve method is required.
 
-        approvalRequired = allowance === 0;
+        approvalRequired = Number(allowance) === 0;
         if (!approvalRequired) {
           Object.keys(apiTrades).forEach((key: string) => (apiTrades[key].approvalNeeded = null));
-        } else if (!isPolledRequest) {
-          const quoteTrade = apiTrades[0].trade;
+        } else if (this.pollCount === 1) {
+          const approvalTransaction = Object.values(apiTrades)[0].approvalNeeded;
+
+          if (!approvalTransaction) {
+            throw new Error(SwapsError.ERROR_FETCHING_QUOTES);
+          }
 
           const transaction: Transaction = {
-            data: quoteTrade.data,
-            from: quoteTrade.from,
-            to: quoteTrade.to,
-            value: quoteTrade.value,
+            data: approvalTransaction.data,
+            from: approvalTransaction.from,
+            to: approvalTransaction.to,
           };
 
           const { gas: approvalGas } = await this.timedoutGasReturn(transaction);
@@ -473,7 +474,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         }
       }
       let topAggId = null;
-      let quotes: { [key: string]: SwapsTrade } = {};
+      let quotes: { [key: string]: SwapsTrade } = apiTrades;
       // We can reduce time on the loading screen by only doing this after the
       // loading screen and best quote have rendered.
       if (!approvalRequired && !fetchParams?.balanceError) {
@@ -544,6 +545,13 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     if (!this.handle && fetchParams) {
       this.fetchAndSetQuotes();
     }
+  }
+
+  resetState() {
+    this.update({
+      ...this.defaultState,
+      tokens: this.state.tokens,
+    });
   }
 }
 

@@ -520,7 +520,7 @@ export async function query(method: string, ethQuery: any, args: any[] = []): Pr
  */
 export async function estimateGas(transaction: Transaction, ethQuery: any) {
   const estimatedTransaction = { ...transaction };
-  const { gasLimit } = await query('getBlockByNumber', ethQuery, ['latest']);
+  const { gasLimit } = await query('getBlockByNumber', ethQuery, ['latest', false]);
   const { gas, gasPrice: providedGasPrice, to, value, data } = estimatedTransaction;
   const gasPrice = typeof providedGasPrice === 'undefined' ? await query('gasPrice', ethQuery) : providedGasPrice;
 
