@@ -366,13 +366,13 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    * Starts a new polling process
    *
    */
-  pollForNewQuotes() {
+  async pollForNewQuotes() {
     // We only want to do up to a maximum of three requests from polling.
     this.pollCount += 1;
     if (this.pollCount < this.config.pollCountLimit + 1) {
       this.update({ isInPolling: true, pollingCyclesLeft: this.config.pollCountLimit - this.pollCount });
       this.handle && clearTimeout(this.handle);
-      this.fetchAndSetQuotes();
+      await this.fetchAndSetQuotes();
       this.handle = setTimeout(() => {
         this.pollForNewQuotes();
       }, this.config.quotePollingInterval);

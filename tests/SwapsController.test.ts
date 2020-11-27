@@ -13,6 +13,8 @@ const HttpProvider = require('ethjs-provider-http');
 const swapsUtil = require('../src/swaps/SwapsUtil');
 const util = require('../src/util');
 
+const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
+
 const QUOTE_POLLING_INTERVAL = 10;
 const POLL_COUNT_LIMIT = 3;
 
@@ -346,34 +348,23 @@ describe('SwapsController', () => {
     expect(swapsController.state.swapsFeatureIsLive).toEqual(true);
   });
 
-  it('should call poll', () => {
+  it('should call poll for new quotes', () => {
     return new Promise((resolve) => {
-      const poll = stub(swapsController, 'fetchAndSetQuotes');
+      const poll = stub(swapsController, 'fetchAndSetQuotes').resolves(
+        new Promise((res: any) => setTimeout(() => res(), 50)),
+      );
       swapsController.pollForNewQuotes();
       expect(poll.called).toBe(true);
       expect(poll.calledTwice).toBe(false);
       setTimeout(() => {
-        expect(poll.calledTwice).toBe(true);
-        swapsController.stopPollingForQuotes();
-        resolve();
-      }, 11);
-    });
-  });
-
-  it('should stop polling', () => {
-    return new Promise((resolve) => {
-      const poll = stub(swapsController, 'fetchAndSetQuotes');
-      swapsController.pollForNewQuotes();
-      expect(poll.called).toBe(true);
-      expect(poll.calledTwice).toBe(false);
-      setTimeout(() => {
-        expect(poll.calledTwice).toBe(true);
-        swapsController.stopPollingForQuotes();
+        expect(poll.calledTwice).toBe(false);
         setTimeout(() => {
-          expect(poll.calledThrice).toBe(false);
-        }, 11);
-        resolve();
-      }, 11);
+          expect(poll.calledTwice).toBe(true);
+          swapsController.stopPollingForQuotes();
+          poll.restore();
+          resolve();
+        }, 20);
+      }, 40);
     });
   });
 
@@ -420,7 +411,7 @@ describe('SwapsController', () => {
   });
 
   it('should poll for new quotes', () => {
-    swapsController.configure({ provider: HttpProvider });
+    swapsController.configure({ provider: MAINNET_PROVIDER });
     const fetchAndSetQuotes = stub(swapsController, 'fetchAndSetQuotes');
     return new Promise(async (resolve) => {
       expect(fetchAndSetQuotes.called).toBe(false);
@@ -441,7 +432,7 @@ describe('SwapsController', () => {
 
   it('should start fetch and set quotes', () => {
     const pollForNewQuotes = stub(swapsController, 'pollForNewQuotes');
-    swapsController.configure({ provider: HttpProvider });
+    swapsController.configure({ provider: MAINNET_PROVIDER });
     return new Promise(async (resolve) => {
       await swapsController.startFetchAndSetQuotes(FETCH_PARAMS, FETCH_PARAMS.metaData, '0x12');
       expect(swapsController.state.fetchParams).toEqual(FETCH_PARAMS);
@@ -452,7 +443,7 @@ describe('SwapsController', () => {
   });
 
   it('should fetch and set quotes', () => {
-    swapsController.configure({ provider: HttpProvider });
+    swapsController.configure({ provider: MAINNET_PROVIDER });
     swapsController.state.fetchParams = FETCH_PARAMS;
     return new Promise(async (resolve) => {
       await swapsController.fetchAndSetQuotes();
