@@ -1,6 +1,5 @@
 import BigNumber from 'bignumber.js';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import TokenRatesController from '../assets/TokenRatesController';
 import { calcTokenAmount, estimateGas, query } from '../util';
 import { Transaction } from '../transaction/TransactionController';
 import {
@@ -92,9 +91,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     quotes: { [key: string]: SwapsTrade },
     customGasPrice?: string,
   ): Promise<{ bestQuote: SwapsQuote; values: SwapsAllValues }> {
-    const tokenRatesController = this.context.TokenRatesController as TokenRatesController;
-    const { contractExchangeRates } = tokenRatesController.state;
-
     const allEthTradeValues: BigNumber[] = [];
     const allEthFees: BigNumber[] = [];
 
@@ -105,6 +101,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     const usedGasPrice = customGasPrice || (await this.getGasPrice());
 
     const quotesValues = Object.values(quotes).map((quote) => quote);
+    const { destinationTokenInfo, destinationTokenConversionRate } = this.state.fetchParams.metaData;
     quotesValues.forEach((quote: SwapsTrade) => {
       const {
         aggregator,
@@ -140,15 +137,12 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       // Otherwise, the total fee is simply trade.value plus gas fees.
       const ethFee = sourceToken === ETH_SWAPS_TOKEN_ADDRESS ? totalWeiCost.minus(sourceAmount, 10) : totalWeiCost;
 
-      const { destinationTokenInfo } = this.state.fetchParams.metaData;
-
-      const tokenConversionRate = contractExchangeRates[destinationToken];
       const ethValueOfTrade =
         destinationToken === ETH_SWAPS_TOKEN_ADDRESS
           ? calcTokenAmount(destinationAmount, 18).minus(totalWeiCost, 10)
-          : new BigNumber(tokenConversionRate || 1, 10)
+          : new BigNumber(destinationTokenConversionRate || 1, 10)
               .times(calcTokenAmount(destinationAmount, destinationTokenInfo.decimals), 10)
-              .minus(tokenConversionRate ? totalWeiCost : 0, 10);
+              .minus(destinationTokenConversionRate ? totalWeiCost : 0, 10);
 
       // collect values for savings calculation
       allEthTradeValues.push(ethValueOfTrade);
@@ -162,8 +156,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     });
 
     const isBest =
-      quotes[topAggId].destinationToken === ETH_SWAPS_TOKEN_ADDRESS ||
-      Boolean(contractExchangeRates[quotes[topAggId]?.destinationToken]);
+      quotes[topAggId].destinationToken === ETH_SWAPS_TOKEN_ADDRESS || Boolean(destinationTokenConversionRate);
 
     return {
       bestQuote: { topAggId, isBest, ethTradeValueOfBestQuote, ethFeeForBestQuote },
@@ -288,7 +281,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
   /**
    * List of required sibling controllers this controller needs to function
    */
-  requiredControllers = ['TokenRatesController'];
+  requiredControllers = [];
 
   /**
    * Creates a SwapsController instance

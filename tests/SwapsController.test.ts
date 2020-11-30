@@ -1,13 +1,7 @@
 import { SinonStub, stub } from 'sinon';
-import AssetsContractController from '../src/assets/AssetsContractController';
-import AssetsController from '../src/assets/AssetsController';
-import CurrencyRateController from '../src/assets/CurrencyRateController';
-import TokenRatesController from '../src/assets/TokenRatesController';
 import ComposableController from '../src/ComposableController';
-import NetworkController from '../src/network/NetworkController';
 import SwapsController from '../src/swaps/SwapsController';
 import { SwapsError } from '../src/swaps/SwapsInterfaces';
-import PreferencesController from '../src/user/PreferencesController';
 
 const HttpProvider = require('ethjs-provider-http');
 const swapsUtil = require('../src/swaps/SwapsUtil');
@@ -241,12 +235,6 @@ jest.mock('web3', () =>
 
 describe('SwapsController', () => {
   let swapsController: SwapsController;
-  let networkController: NetworkController;
-  let tokenRatesController: TokenRatesController;
-  let assetsController: AssetsController;
-  let currencyRateController: CurrencyRateController;
-  let assetsContractController: AssetsContractController;
-  let preferencesController: PreferencesController;
   let swapsUtilFetchTokens: SinonStub;
   let fetchTradesInfo: SinonStub;
   let estimateGas: SinonStub;
@@ -260,21 +248,7 @@ describe('SwapsController', () => {
       quotePollingInterval: QUOTE_POLLING_INTERVAL,
       pollCountLimit: POLL_COUNT_LIMIT,
     });
-    networkController = new NetworkController();
-    tokenRatesController = new TokenRatesController();
-    assetsController = new AssetsController();
-    currencyRateController = new CurrencyRateController();
-    assetsContractController = new AssetsContractController();
-    preferencesController = new PreferencesController();
-    new ComposableController([
-      swapsController,
-      networkController,
-      tokenRatesController,
-      assetsController,
-      currencyRateController,
-      assetsContractController,
-      preferencesController,
-    ]);
+    new ComposableController([swapsController]);
   });
 
   afterEach(() => {
@@ -360,7 +334,7 @@ describe('SwapsController', () => {
         expect(poll.calledTwice).toBe(false);
         setTimeout(() => {
           expect(poll.calledTwice).toBe(true);
-          swapsController.stopPollingForQuotes();
+          swapsController.stopPollingAndResetState();
           poll.restore();
           resolve();
         }, 20);

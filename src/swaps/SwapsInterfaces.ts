@@ -69,6 +69,7 @@ export interface APIFetchQuotesMetadata {
   sourceTokenInfo: SwapsToken;
   destinationTokenInfo: SwapsToken;
   accountBalance: string;
+  destinationTokenConversionRate?: string;
 }
 
 export interface APIFetchQuotesParams {
