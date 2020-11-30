@@ -378,40 +378,35 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     }
   }
 
-  async getAllQuotesWithGasEstimates(quotes: { [key: string]: SwapsTrade }): Promise<{ [key: string]: SwapsTrade }> {
+  async getAllQuotesWithGasEstimates(trades: { [key: string]: SwapsTrade }): Promise<{ [key: string]: SwapsTrade }> {
     const quoteGasData = await Promise.all(
-      Object.values(quotes).map((quote) => {
+      Object.values(trades).map((trade) => {
         return new Promise<{ gas: string | null; aggId: string }>(async (resolve, reject) => {
           try {
-            const { gas } = await this.timedoutGasReturn(quote.trade);
-            resolve({ gas, aggId: quote.aggregator });
+            const { gas } = await this.timedoutGasReturn(trade.trade);
+            resolve({ gas, aggId: trade.aggregator });
           } catch (e) {
             reject(e);
           }
         });
       }),
     );
-    // simulation fail ?
+
     const newQuotes: { [key: string]: SwapsTrade } = {};
     quoteGasData.forEach(({ gas, aggId }) => {
       if (gas) {
         const gasEstimateWithRefund = calculateGasEstimateWithRefund(
-          quotes[aggId]?.maxGas,
-          quotes[aggId]?.estimatedRefund,
+          trades[aggId]?.maxGas,
+          trades[aggId]?.estimatedRefund,
           parseInt(gas, 16),
         );
 
         newQuotes[aggId] = {
-          ...quotes[aggId],
+          ...trades[aggId],
           gasEstimate: parseInt(gas, 16),
           gasEstimateWithRefund,
         };
-      } else if (quotes[aggId]?.approvalNeeded) {
-        // If gas estimation fails, but an ERC-20 approve is needed, then we do not add any estimate property to the quote object
-        // Such quotes will rely on the maxGas and averageGas properties from the api
-        newQuotes[aggId] = { ...quotes[aggId], gasEstimate: undefined, gasEstimateWithRefund: undefined };
       }
-      // If gas estimation fails and no approval is needed, then we filter that quote out, so that it is not shown to the user
     });
     return newQuotes;
   }
@@ -463,8 +458,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       }
       let topAggId = null;
       let quotes: { [key: string]: SwapsTrade } = apiTrades;
-      // We can reduce time on the loading screen by only doing this after the
-      // loading screen and best quote have rendered.
+
       if (!approvalRequired && !fetchParams?.balanceError) {
         quotes = await this.getAllQuotesWithGasEstimates(apiTrades);
       }
