@@ -335,18 +335,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     }
   }
 
-  setSwapsTokens(newTokens: null | SwapsToken[]) {
-    this.update({ tokens: newTokens });
-  }
-
-  setSwapsErrorKey(newErrorKey: null | SwapsError) {
-    this.update({ errorKey: newErrorKey });
-  }
-
-  setQuotesLastFetched(newQuotesLastFetched: number) {
-    this.update({ quotesLastFetched: newQuotesLastFetched });
-  }
-
   /**
    * Starts a new polling process
    *
@@ -530,7 +518,5 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     });
   }
 }
-
-// ignore response if polling finished
 
 export default SwapsController;
