@@ -45,7 +45,6 @@ export interface SwapsState extends BaseState {
   quotesLastFetched: null | number;
   errorKey: null | SwapsError;
   topAggId: null | string;
-  swapsFeatureIsLive: boolean;
   tokensLastFetched: number;
   customGasPrice?: string;
   isInPolling: boolean;
@@ -319,7 +318,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       quotesLastFetched: 0,
       errorKey: null,
       topAggId: null,
-      swapsFeatureIsLive: false,
       tokensLastFetched: 0,
       isInPolling: false,
       isInFetch: false,
@@ -347,10 +345,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
   setQuotesLastFetched(newQuotesLastFetched: number) {
     this.update({ quotesLastFetched: newQuotesLastFetched });
-  }
-
-  setSwapsLiveness(isLive: boolean) {
-    this.update({ swapsFeatureIsLive: isLive });
   }
 
   /**
@@ -413,7 +407,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       this.indexOfNewestCallInFlight = indexOfCurrentCall;
 
       const apiTrades: { [key: string]: SwapsTrade } = await fetchTradesInfo(fetchParams);
-      // !! sourceTokenInfo and destinationTokenInfo are in state, why add it to all entries?
 
       const quotesLastFetched = Date.now();
 
@@ -421,11 +414,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
       if (fetchParams.sourceToken !== ETH_SWAPS_TOKEN_ADDRESS && Object.values(apiTrades).length) {
         const allowance = await this.getERC20Allowance(fetchParams.sourceToken, fetchParams.fromAddress);
-
-        // For a user to be able to swap a token, they need to have approved the MetaSwap contract to withdraw that token.
-        // getERC20Allowance() returns the amount of the token they have approved for withdrawal. If that amount is greater
-        // than 0, it means that approval has already occured and is not needed. Otherwise, for tokens to be swapped, a new
-        // call of the ERC-20 approve method is required.
 
         approvalRequired = Number(allowance) === 0;
         if (!approvalRequired) {
