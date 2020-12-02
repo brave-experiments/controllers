@@ -476,12 +476,13 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         throw new Error(SwapsError.SWAPS_FETCH_ORDER_CONFLICT);
       }
 
-      this.update({
-        quotes,
-        quotesLastFetched,
-        topAggId,
-        isInFetch: false,
-      });
+      this.state.isInPolling &&
+        this.update({
+          quotes,
+          quotesLastFetched,
+          topAggId,
+          isInFetch: false,
+        });
     } catch (e) {
       const error = Object.values(SwapsError).includes(e) ? e : SwapsError.ERROR_FETCHING_QUOTES;
       this.stopPollingWithError(error);
@@ -534,6 +535,8 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     this.pollCount = this.config.pollCountLimit + 1;
     this.update({
       ...this.defaultState,
+      isInPolling: false,
+      isInFetch: false,
       tokensLastFetched: this.state.tokensLastFetched,
       tokens: this.state.tokens,
     });
