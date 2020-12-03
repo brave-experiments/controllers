@@ -50,6 +50,7 @@ export interface SwapsState extends BaseState {
   isInPolling: boolean;
   isInFetch: boolean;
   pollingCyclesLeft: number;
+  approvalTransaction: Transaction | null;
 }
 
 const QUOTE_POLLING_INTERVAL = 50 * 1000;
@@ -102,7 +103,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     Object.values(quotes).forEach((quote: SwapsTrade) => {
       const {
         aggregator,
-        approvalNeeded,
         averageGas,
         destinationAmount = 0,
         destinationToken,
@@ -116,7 +116,10 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         ? new BigNumber(gasEstimate, 16)
         : new BigNumber(averageGas || MAX_GAS_LIMIT, 10);
 
-      const totalGasLimitForCalculation = tradeGasLimitForCalculation.plus(approvalNeeded?.gas || '0x0', 16);
+      const totalGasLimitForCalculation = tradeGasLimitForCalculation.plus(
+        this.state.approvalTransaction?.gas || '0x0',
+        16,
+      );
 
       const gasTotalInWei = totalGasLimitForCalculation.times(usedGasPrice, 16);
 
@@ -313,6 +316,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         },
       },
       tokens: null,
+      approvalTransaction: null,
       quotesLastFetched: 0,
       errorKey: null,
       topAggId: null,
@@ -321,7 +325,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       isInFetch: false,
       pollingCyclesLeft: config?.pollCountLimit || 3,
     };
-    this.indexOfNewestCallInFlight = 0;
 
     this.initialize();
   }
@@ -389,62 +392,53 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     const { fetchParams, customGasPrice } = this.state;
     this.update({ isInFetch: true });
     try {
-      const apiTrades: { [key: string]: SwapsTrade } = await fetchTradesInfo(fetchParams);
+      let apiTrades: { [key: string]: SwapsTrade } = await fetchTradesInfo(fetchParams);
 
       if (Object.values(apiTrades).length === 0) {
         throw new Error(SwapsError.QUOTES_NOT_AVAILABLE_ERROR);
       }
 
       const quotesLastFetched = Date.now();
-
-      let approvalRequired = false;
+      let approvalTransaction: Transaction | null = null;
 
       if (fetchParams.sourceToken !== ETH_SWAPS_TOKEN_ADDRESS) {
         const allowance = await this.getERC20Allowance(fetchParams.sourceToken, fetchParams.fromAddress);
 
-        approvalRequired = Number(allowance) === 0;
+        apiTrades = await this.getAllQuotesWithGasEstimates(apiTrades);
 
-        if (!approvalRequired) {
-          Object.keys(apiTrades).forEach((key: string) => (apiTrades[key].approvalNeeded = null));
-        } else if (this.pollCount === 1) {
-          const approvalTransaction = Object.values(apiTrades)[0].approvalNeeded;
-
+        if (Number(allowance) === 0 && this.pollCount === 1) {
+          approvalTransaction = Object.values(apiTrades)[0].approvalNeeded;
           if (!approvalTransaction) {
             throw new Error(SwapsError.ERROR_FETCHING_QUOTES);
           }
-
           const { gas: approvalGas } = await this.timedoutGasReturn({
             data: approvalTransaction.data,
             from: approvalTransaction.from,
             to: approvalTransaction.to,
           });
 
-          Object.keys(apiTrades).forEach((key: string) => {
-            apiTrades[key].approvalNeeded = {
-              data: approvalTransaction.data,
-              from: approvalTransaction.from,
-              to: approvalTransaction.to,
-              gas: approvalGas || DEFAULT_ERC20_APPROVE_GAS,
-            };
-          });
+          approvalTransaction = {
+            ...approvalTransaction,
+            gas: approvalGas || DEFAULT_ERC20_APPROVE_GAS,
+          };
+
+          // add to apiTrades
+          // gasEstimate: parseInt(gas, 16),
+          // gasEstimateWithRefund,
         }
       }
-      let quotes: { [key: string]: SwapsTrade } = apiTrades;
 
-      if (!approvalRequired && !fetchParams?.balanceError) {
-        quotes = await this.getAllQuotesWithGasEstimates(apiTrades);
-      }
-
-      const bestQuote: SwapsQuote | null = await this.findBestQuoteAndCalulateSavings(quotes, customGasPrice);
+      const bestQuote: SwapsQuote | null = await this.findBestQuoteAndCalulateSavings(apiTrades, customGasPrice);
       const topAggId = bestQuote?.topAggId;
       if (topAggId) {
-        quotes[topAggId] = { ...quotes[topAggId], isBest: true, savings: bestQuote?.savings };
+        apiTrades[topAggId] = { ...apiTrades[topAggId], isBest: true, savings: bestQuote?.savings };
       }
 
       this.state.isInPolling &&
         this.update({
-          quotes,
+          quotes: apiTrades,
           quotesLastFetched,
+          approvalTransaction,
           topAggId,
           isInFetch: false,
         });
