@@ -106,14 +106,14 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         averageGas,
         destinationAmount = 0,
         destinationToken,
-        gasEstimate,
         sourceAmount,
         sourceToken,
         trade,
+        estimatedNetworkFee,
       } = quote;
 
-      const tradeGasLimitForCalculation = gasEstimate
-        ? new BigNumber(gasEstimate, 16)
+      const tradeGasLimitForCalculation = estimatedNetworkFee
+        ? new BigNumber(estimatedNetworkFee.toString(16), 16)
         : new BigNumber(averageGas || MAX_GAS_LIMIT, 10);
 
       const totalGasLimitForCalculation = tradeGasLimitForCalculation.plus(
@@ -192,7 +192,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    * @param customGasPrice - If defined, custom gas price used
    * @returns - Promise resolving to an object containing best aggregator id and respective savings
    */
-  private async findBestQuoteAndCalulateSavings(
+  private async findBestQuoteAndCalculateSavings(
     quotes: { [key: string]: SwapsTrade },
     customGasPrice?: string,
   ): Promise<SwapsQuote | null> {
@@ -355,13 +355,19 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     }
   }
 
-  async getAllQuotesWithGasEstimates(trades: { [key: string]: SwapsTrade }): Promise<{ [key: string]: SwapsTrade }> {
+  async getAllQuotesWithGasEstimates(
+    trades: { [key: string]: SwapsTrade },
+    approvalGas: string | null,
+  ): Promise<{ [key: string]: SwapsTrade }> {
     const quoteGasData = await Promise.all(
       Object.values(trades).map((trade) => {
         return new Promise<{ gas: string | null; aggId: string }>(async (resolve, reject) => {
           try {
             const { gas } = await this.timedoutGasReturn(trade.trade);
-            resolve({ gas, aggId: trade.aggregator });
+            resolve({
+              gas,
+              aggId: trade.aggregator,
+            });
           } catch (e) {
             reject(e);
           }
@@ -372,16 +378,18 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     const newQuotes: { [key: string]: SwapsTrade } = {};
     quoteGasData.forEach(({ gas, aggId }) => {
       if (gas) {
-        const gasEstimateWithRefund = calculateGasEstimateWithRefund(
-          trades[aggId]?.maxGas,
-          trades[aggId]?.estimatedRefund,
-          parseInt(gas, 16),
-        );
-
         newQuotes[aggId] = {
           ...trades[aggId],
-          gasEstimate: parseInt(gas, 16),
-          gasEstimateWithRefund,
+          maxNetworkFee: approvalGas
+            ? parseInt(approvalGas, 16) + trades[aggId]?.maxGas
+            : Math.max(trades[aggId]?.maxGas, parseInt(gas, 16)),
+          estimatedNetworkFee: approvalGas
+            ? parseInt(approvalGas, 16) + trades[aggId]?.averageGas
+            : calculateGasEstimateWithRefund(
+                trades[aggId]?.maxGas,
+                trades[aggId]?.estimatedRefund,
+                parseInt(gas, 16),
+              ).toNumber(),
         };
       }
     });
@@ -399,12 +407,15 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       }
 
       const quotesLastFetched = Date.now();
-      let approvalTransaction: Transaction | null = null;
+      let approvalTransaction: {
+        data?: string;
+        from: string;
+        to?: string;
+        gas?: string;
+      } | null = null;
 
       if (fetchParams.sourceToken !== ETH_SWAPS_TOKEN_ADDRESS) {
         const allowance = await this.getERC20Allowance(fetchParams.sourceToken, fetchParams.fromAddress);
-
-        apiTrades = await this.getAllQuotesWithGasEstimates(apiTrades);
 
         if (Number(allowance) === 0 && this.pollCount === 1) {
           approvalTransaction = Object.values(apiTrades)[0].approvalNeeded;
@@ -421,17 +432,15 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
             ...approvalTransaction,
             gas: approvalGas || DEFAULT_ERC20_APPROVE_GAS,
           };
-
-          // add to apiTrades
-          // gasEstimate: parseInt(gas, 16),
-          // gasEstimateWithRefund,
         }
+
+        apiTrades = await this.getAllQuotesWithGasEstimates(apiTrades, approvalTransaction?.gas || null);
       }
 
-      const bestQuote: SwapsQuote | null = await this.findBestQuoteAndCalulateSavings(apiTrades, customGasPrice);
+      const bestQuote: SwapsQuote | null = await this.findBestQuoteAndCalculateSavings(apiTrades, customGasPrice);
       const topAggId = bestQuote?.topAggId;
       if (topAggId) {
-        apiTrades[topAggId] = { ...apiTrades[topAggId], isBest: true, savings: bestQuote?.savings };
+        apiTrades[topAggId] = { ...apiTrades[topAggId], savings: bestQuote?.savings };
       }
 
       this.state.isInPolling &&

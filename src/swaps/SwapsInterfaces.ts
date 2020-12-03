@@ -114,8 +114,7 @@ export interface SwapsTrade {
   aggType: string;
   fee: number;
   gasMultiplier?: number;
-  gasEstimate?: number;
-  gasEstimateWithRefund?: BigNumber;
-  isBest?: boolean;
   savings?: SwapsQuoteSavings;
+  maxNetworkFee: null | number;
+  estimatedNetworkFee?: number;
 }

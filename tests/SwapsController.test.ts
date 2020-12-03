@@ -12,29 +12,29 @@ const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io/v3/341eacb5
 const QUOTE_POLLING_INTERVAL = 10;
 const POLL_COUNT_LIMIT = 3;
 
-const API_TOKENS = [
-  {
-    address: '0x6b175474e89094c44da98b954eedeac495271d0f',
-    symbol: 'DAI',
-    decimals: 18,
-    occurances: 30,
-    iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmNYVMm3iC7HEoxfvxsZbRoapdjDHj9EREFac4BPeVphSJ',
-  },
-  {
-    address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
-    symbol: 'USDT',
-    decimals: 6,
-    occurances: 30,
-    iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmR3TGmDDdmid99ExTHwPiKro4njZhSidbjcTbSrS5rHnq',
-  },
-  {
-    address: '0x8e870d67f660d95d5be530380d0ec0bd388289e1',
-    symbol: 'PAX',
-    decimals: 18,
-    occurances: 30,
-    iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmQTzo6Ecdn54x7NafwegjLetAnno1ATL9Y8M3PcVXGVhR',
-  },
-];
+// const API_TOKENS = [
+//   {
+//     address: '0x6b175474e89094c44da98b954eedeac495271d0f',
+//     symbol: 'DAI',
+//     decimals: 18,
+//     occurances: 30,
+//     iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmNYVMm3iC7HEoxfvxsZbRoapdjDHj9EREFac4BPeVphSJ',
+//   },
+//   {
+//     address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+//     symbol: 'USDT',
+//     decimals: 6,
+//     occurances: 30,
+//     iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmR3TGmDDdmid99ExTHwPiKro4njZhSidbjcTbSrS5rHnq',
+//   },
+//   {
+//     address: '0x8e870d67f660d95d5be530380d0ec0bd388289e1',
+//     symbol: 'PAX',
+//     decimals: 18,
+//     occurances: 30,
+//     iconUrl: 'https://cloudflare-ipfs.com/ipfs/QmQTzo6Ecdn54x7NafwegjLetAnno1ATL9Y8M3PcVXGVhR',
+//   },
+// ];
 
 const API_TRADES = {
   totle: {
@@ -297,29 +297,9 @@ describe('SwapsController', () => {
       quotesLastFetched: 0,
       errorKey: null,
       topAggId: null,
-      swapsFeatureIsLive: false,
       tokensLastFetched: 0,
+      approvalTransaction: null,
     });
-  });
-
-  it('should set tokens', () => {
-    swapsController.setSwapsTokens(API_TOKENS);
-    expect(swapsController.state.tokens).toEqual(API_TOKENS);
-  });
-
-  it('should set error key', () => {
-    swapsController.setSwapsErrorKey(SwapsError.ERROR_FETCHING_QUOTES);
-    expect(swapsController.state.errorKey).toEqual(SwapsError.ERROR_FETCHING_QUOTES);
-  });
-
-  it('should set quotes last fetched', () => {
-    swapsController.setQuotesLastFetched(123);
-    expect(swapsController.state.quotesLastFetched).toEqual(123);
-  });
-
-  it('should set swaps liveness', () => {
-    swapsController.setSwapsLiveness(true);
-    expect(swapsController.state.swapsFeatureIsLive).toEqual(true);
   });
 
   it('should call poll for new quotes', () => {
@@ -419,6 +399,7 @@ describe('SwapsController', () => {
   it('should fetch and set quotes', () => {
     swapsController.configure({ provider: MAINNET_PROVIDER });
     swapsController.state.fetchParams = FETCH_PARAMS;
+    swapsController.state.isInPolling = true;
     return new Promise(async (resolve) => {
       await swapsController.fetchAndSetQuotes();
       expect(swapsController.state.fetchParams).toEqual(FETCH_PARAMS);
