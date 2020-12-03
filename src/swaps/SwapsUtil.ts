@@ -165,6 +165,26 @@ export function calculateGasEstimateWithRefund(
   return gasEstimateWithRefund;
 }
 
+export function calculateMaxNetworkFee(approvalGas: string | null, estimatedGas: string, maxGas: number): number {
+  if (approvalGas) {
+    return parseInt(approvalGas, 16) + maxGas;
+  }
+  return Math.max(maxGas, parseInt(estimatedGas, 16));
+}
+
+export function calculateEstimatedNetworkFee(
+  approvalGas: string | null,
+  estimatedGas: string,
+  maxGas: number,
+  estimatedRefund: number,
+  averageGas: number,
+): number {
+  if (approvalGas) {
+    return parseInt(approvalGas, 16) + averageGas;
+  }
+  return calculateGasEstimateWithRefund(maxGas, estimatedRefund, parseInt(estimatedGas, 16)).toNumber();
+}
+
 /**
  * Calculates the median of a sample of BigNumber values.
  *

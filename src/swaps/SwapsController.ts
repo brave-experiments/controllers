@@ -3,7 +3,6 @@ import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import { calcTokenAmount, estimateGas, query } from '../util';
 import { Transaction } from '../transaction/TransactionController';
 import {
-  calculateGasEstimateWithRefund,
   DEFAULT_ERC20_APPROVE_GAS,
   ETH_SWAPS_TOKEN_ADDRESS,
   fetchTokens,
@@ -11,6 +10,8 @@ import {
   getMedian,
   SWAPS_CONTRACT_ADDRESS,
   SwapsError,
+  calculateMaxNetworkFee,
+  calculateEstimatedNetworkFee,
 } from './SwapsUtil';
 import {
   SwapsTrade,
@@ -238,9 +239,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     });
 
     return new Promise(async (resolve, reject) => {
-      // Remove gas from params that will be passed to the `estimateGas` call
-      // Including it can cause the estimate to fail if the actual gas needed
-      // exceeds the passed gas
       const tradeTxParamsForGasEstimate = {
         data: tradeTxParams.data,
         from: tradeTxParams.from,
@@ -377,16 +375,14 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       if (gas) {
         newQuotes[aggId] = {
           ...trades[aggId],
-          maxNetworkFee: approvalGas
-            ? parseInt(approvalGas, 16) + trades[aggId]?.maxGas
-            : Math.max(trades[aggId]?.maxGas, parseInt(gas, 16)),
-          estimatedNetworkFee: approvalGas
-            ? parseInt(approvalGas, 16) + trades[aggId]?.averageGas
-            : calculateGasEstimateWithRefund(
-                trades[aggId]?.maxGas,
-                trades[aggId]?.estimatedRefund,
-                parseInt(gas, 16),
-              ).toNumber(),
+          maxNetworkFee: calculateMaxNetworkFee(approvalGas, gas, trades[aggId]?.maxGas),
+          estimatedNetworkFee: calculateEstimatedNetworkFee(
+            approvalGas,
+            gas,
+            trades[aggId]?.maxGas,
+            trades[aggId]?.estimatedRefund,
+            trades[aggId]?.averageGas,
+          ),
         };
       }
     });
@@ -430,10 +426,8 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
             gas: approvalGas || DEFAULT_ERC20_APPROVE_GAS,
           };
         }
-
-        apiTrades = await this.getAllQuotesWithGasEstimates(apiTrades, approvalTransaction?.gas || null);
       }
-
+      apiTrades = await this.getAllQuotesWithGasEstimates(apiTrades, approvalTransaction?.gas || null);
       const bestQuote: SwapsQuote | null = await this.findBestQuoteAndCalculateSavings(apiTrades, customGasPrice);
       const topAggId = bestQuote?.topAggId;
       if (topAggId) {
