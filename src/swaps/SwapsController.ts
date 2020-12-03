@@ -10,10 +10,10 @@ import {
   fetchTradesInfo,
   getMedian,
   SWAPS_CONTRACT_ADDRESS,
+  SwapsError,
 } from './SwapsUtil';
 import {
   SwapsTrade,
-  SwapsError,
   SwapsQuote,
   SwapsQuoteSavings,
   SwapsToken,
@@ -153,10 +153,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       }
     });
 
-    // / ???????
-    // const isBest =
-    //   quotes[topAggId].destinationToken === ETH_SWAPS_TOKEN_ADDRESS || Boolean(destinationTokenConversionRate);
-
     return {
       bestQuote: { topAggId, ethTradeValueOfBestQuote, ethFeeForBestQuote },
       values: { allEthTradeValues, allEthFees },
@@ -250,6 +246,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         from: tradeTxParams.from,
         to: tradeTxParams.to,
         value: tradeTxParams.value,
+        gas: MAX_GAS_LIMIT.toString(16),
       };
       try {
         const gas: { gas: string | null } = (await Promise.race([

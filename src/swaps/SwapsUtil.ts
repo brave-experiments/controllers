@@ -26,6 +26,15 @@ const MAX_GAS_LIMIT = 2500000;
 
 export const SWAPS_CONTRACT_ADDRESS = '0x881d40237659c251811cec9c364ef91dc08d300c';
 
+export enum SwapsError {
+  QUOTES_EXPIRED_ERROR = 'quotes-expired',
+  SWAP_FAILED_ERROR = 'swap-failed-error',
+  ERROR_FETCHING_QUOTES = 'error-fetching-quotes',
+  QUOTES_NOT_AVAILABLE_ERROR = 'quotes-not-available',
+  OFFLINE_FOR_MAINTENANCE = 'offline-for-maintenance',
+  SWAPS_FETCH_ORDER_CONFLICT = 'swaps-fetch-order-conflict',
+}
+
 // Functions
 
 export const getBaseApiURL = function (type: APIType): string {

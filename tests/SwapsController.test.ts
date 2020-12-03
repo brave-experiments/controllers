@@ -1,7 +1,7 @@
 import { SinonStub, stub } from 'sinon';
 import ComposableController from '../src/ComposableController';
 import SwapsController from '../src/swaps/SwapsController';
-import { SwapsError } from '../src/swaps/SwapsInterfaces';
+import { SwapsError } from '../src/swaps/SwapsUtil';
 
 const HttpProvider = require('ethjs-provider-http');
 const swapsUtil = require('../src/swaps/SwapsUtil');
