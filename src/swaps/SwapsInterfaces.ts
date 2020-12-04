@@ -106,6 +106,7 @@ export interface SwapsTrade {
   fee: number;
   gasMultiplier?: number;
   savings?: SwapsQuoteSavings;
+  gasEstimate?: string;
   maxNetworkFee: null | number;
   estimatedNetworkFee?: number;
 }

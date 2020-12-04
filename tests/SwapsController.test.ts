@@ -367,20 +367,20 @@ describe('SwapsController', () => {
   it('should poll for new quotes', () => {
     swapsController.configure({ provider: MAINNET_PROVIDER });
     const fetchAndSetQuotes = stub(swapsController, 'fetchAndSetQuotes');
+
+    const awaitPollingInterval = () => new Promise((resolve) => setTimeout(() => resolve(), QUOTE_POLLING_INTERVAL));
+
     return new Promise(async (resolve) => {
       expect(fetchAndSetQuotes.called).toBe(false);
       await swapsController.pollForNewQuotes();
       expect(fetchAndSetQuotes.called).toBe(true);
-      setTimeout(() => {
-        expect(fetchAndSetQuotes.calledTwice).toBe(true);
-        setTimeout(() => {
-          expect(fetchAndSetQuotes.calledThrice).toBe(true);
-          setTimeout(() => {
-            expect(swapsController.state.errorKey).toEqual(SwapsError.QUOTES_EXPIRED_ERROR);
-            resolve();
-          }, QUOTE_POLLING_INTERVAL + 1);
-        }, QUOTE_POLLING_INTERVAL + 1);
-      }, QUOTE_POLLING_INTERVAL + 1);
+      await awaitPollingInterval();
+      expect(fetchAndSetQuotes.calledTwice).toBe(true);
+      await awaitPollingInterval();
+      expect(fetchAndSetQuotes.calledThrice).toBe(true);
+      await awaitPollingInterval();
+      expect(swapsController.state.errorKey).toEqual(SwapsError.QUOTES_EXPIRED_ERROR);
+      resolve();
     });
   });
 
@@ -410,7 +410,6 @@ describe('SwapsController', () => {
       await swapsController.fetchAndSetQuotes();
       expect(swapsController.state.isInFetch).toBeFalsy();
       expect(swapsController.state.errorKey).toEqual(SwapsError.ERROR_FETCHING_QUOTES);
-
       resolve();
     });
   });

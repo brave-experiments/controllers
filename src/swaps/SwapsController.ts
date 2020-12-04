@@ -110,11 +110,11 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         sourceAmount,
         sourceToken,
         trade,
-        estimatedNetworkFee,
+        gasEstimate,
       } = quote;
 
-      const tradeGasLimitForCalculation = estimatedNetworkFee
-        ? new BigNumber(estimatedNetworkFee.toString(16), 16)
+      const tradeGasLimitForCalculation = gasEstimate
+        ? new BigNumber(gasEstimate, 16)
         : new BigNumber(averageGas || MAX_GAS_LIMIT, 10);
 
       const totalGasLimitForCalculation = tradeGasLimitForCalculation.plus(
@@ -138,10 +138,10 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
       const ethValueOfTrade =
         destinationToken === ETH_SWAPS_TOKEN_ADDRESS
-          ? calcTokenAmount(destinationAmount, 18).minus(totalWeiCost, 10)
+          ? calcTokenAmount(destinationAmount, destinationTokenInfo.decimals).minus(totalWeiCost, 10)
           : new BigNumber(destinationTokenConversionRate || 1, 10)
               .times(calcTokenAmount(destinationAmount, destinationTokenInfo.decimals), 10)
-              .minus(destinationTokenConversionRate ? totalWeiCost : 0, 10);
+              .minus(totalWeiCost, 10);
 
       // collect values for savings calculation
       allEthTradeValues.push(ethValueOfTrade);
@@ -375,6 +375,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       if (gas) {
         newQuotes[aggId] = {
           ...trades[aggId],
+          gasEstimate: gas,
           maxNetworkFee: calculateMaxNetworkFee(approvalGas, gas, trades[aggId]?.maxGas),
           estimatedNetworkFee: calculateEstimatedNetworkFee(
             approvalGas,
@@ -498,6 +499,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       isInFetch: false,
       tokensLastFetched: this.state.tokensLastFetched,
       tokens: this.state.tokens,
+      errorKey: undefined,
     });
   }
 }

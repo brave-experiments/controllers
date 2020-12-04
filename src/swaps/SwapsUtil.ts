@@ -84,7 +84,7 @@ export async function fetchTradesInfo({
         to: quote.trade.to,
         from: quote.trade.from,
         data: quote.trade.data,
-        amount: BNToHex(quote.trade.value),
+        amount: BNToHex(new BigNumber(quote.trade.value)),
         gas: BNToHex(quote.maxGas),
       });
 
