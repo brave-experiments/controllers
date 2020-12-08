@@ -487,9 +487,9 @@ export function normalizeEnsName(ensName: string): string | null {
   return null;
 }
 
-export function calcTokenAmount(value: number, decimals: number) {
+export function calcTokenAmount(value: number | BigNumber, decimals: number) {
   const multiplier = Math.pow(10, Number(decimals || 0));
-  return new BigNumber(String(value)).div(multiplier);
+  return new BigNumber(value).div(multiplier);
 }
 
 /**

@@ -1,4 +1,5 @@
 import BigNumber from 'bignumber.js';
+import { addHexPrefix } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import { calcTokenAmount, estimateGas, query } from '../util';
 import { Transaction } from '../transaction/TransactionController';
@@ -7,20 +8,20 @@ import {
   ETH_SWAPS_TOKEN_ADDRESS,
   fetchTokens,
   fetchTradesInfo,
-  getMedian,
   SWAPS_CONTRACT_ADDRESS,
   SwapsError,
   calculateMaxNetworkFee,
   calculateEstimatedNetworkFee,
+  getMedianEthValueQuote,
 } from './SwapsUtil';
 import {
   SwapsTrade,
   SwapsQuote,
   SwapsQuoteSavings,
   SwapsToken,
-  SwapsAllValues,
   APIFetchQuotesParams,
   APIFetchQuotesMetadata,
+  TradeFees,
 } from './SwapsInterfaces';
 
 const { Mutex } = require('await-semaphore');
@@ -89,14 +90,11 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
   private async getBestQuoteAndEthValues(
     quotes: { [key: string]: SwapsTrade },
     customGasPrice?: string,
-  ): Promise<{ bestQuote: SwapsQuote; values: SwapsAllValues }> {
-    const allEthTradeValues: BigNumber[] = [];
-    const allEthFees: BigNumber[] = [];
-
+  ): Promise<{ topAggId: string; tradeFees: { [key: string]: TradeFees } }> {
     let topAggId = '';
-    let ethTradeValueOfBestQuote: BigNumber = new BigNumber(0);
-    let ethFeeForBestQuote: BigNumber = new BigNumber(0);
+    let overallValueOfBestQuoteForSorting: BigNumber = new BigNumber(0);
 
+    const tradeFees: { [key: string]: TradeFees } = {};
     const usedGasPrice = customGasPrice || (await this.getGasPrice());
 
     const { destinationTokenInfo, destinationTokenConversionRate } = this.state.fetchParams.metaData;
@@ -111,53 +109,60 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         sourceToken,
         trade,
         gasEstimate,
+        fee: metaMaskFee,
       } = quote;
 
-      const tradeGasLimitForCalculation = gasEstimate
+      // trade gas
+      const tradeGasLimit = gasEstimate
         ? new BigNumber(gasEstimate, 16)
         : new BigNumber(averageGas || MAX_GAS_LIMIT, 10);
 
-      const totalGasLimitForCalculation = tradeGasLimitForCalculation.plus(
-        this.state.approvalTransaction?.gas || '0x0',
-        16,
-      );
+      // + approval gas if required
+      const totalGasLimit = tradeGasLimit.plus(this.state.approvalTransaction?.gas || '0x0', 16);
+      const totalGasInWei = totalGasLimit.times(addHexPrefix(usedGasPrice), 10);
 
-      const gasTotalInWei = totalGasLimitForCalculation.times(usedGasPrice, 16);
-
+      // totalGas + trade value
       // trade.value is a sum of different values depending on the transaction.
       // It always includes any external fees charged by the quote source. In
       // addition, if the source asset is ETH, trade.value includes the amount
       // of swapped ETH.
+      const totalInWei = totalGasInWei.plus(trade.value, 16);
 
-      const totalWeiCost = gasTotalInWei.plus(trade.value, 16);
+      // if value in trade, ETH fee will be the gas, if not it will be the total wei
+      const weiFee = sourceToken === ETH_SWAPS_TOKEN_ADDRESS ? totalInWei.minus(sourceAmount, 10) : totalInWei; // sourceAmount is in wei : totalInWei;
+      const ethFee = calcTokenAmount(weiFee, 18);
+      const decimalAdjustedDestinationAmount = calcTokenAmount(destinationAmount, destinationTokenInfo.decimals);
 
-      // The total fee is aggregator/exchange fees plus gas fees.
-      // If the swap is from ETH, subtract the sourceAmount from the total cost.
-      // Otherwise, the total fee is simply trade.value plus gas fees.
-      const ethFee = sourceToken === ETH_SWAPS_TOKEN_ADDRESS ? totalWeiCost.minus(sourceAmount, 10) : totalWeiCost;
+      // fees
 
-      const ethValueOfTrade =
-        destinationToken === ETH_SWAPS_TOKEN_ADDRESS
-          ? calcTokenAmount(destinationAmount, destinationTokenInfo.decimals).minus(totalWeiCost, 10)
-          : new BigNumber(destinationTokenConversionRate || 1, 10)
-              .times(calcTokenAmount(destinationAmount, destinationTokenInfo.decimals), 10)
-              .minus(totalWeiCost, 10);
+      const tokenPercentageOfPreFeeDestAmount = new BigNumber(100, 10).minus(metaMaskFee, 10).div(100);
+      const destinationAmountBeforeMetaMaskFee = decimalAdjustedDestinationAmount.div(
+        tokenPercentageOfPreFeeDestAmount,
+      );
+      const metaMaskFeeInTokens = destinationAmountBeforeMetaMaskFee.minus(decimalAdjustedDestinationAmount);
 
-      // collect values for savings calculation
-      allEthTradeValues.push(ethValueOfTrade);
-      allEthFees.push(ethFee);
+      const conversionRate = destinationTokenConversionRate || 1;
 
-      if (ethValueOfTrade.gt(ethTradeValueOfBestQuote)) {
+      const ethValueOfTokens = decimalAdjustedDestinationAmount.times(conversionRate, 10);
+
+      // the more tokens the better
+      const overallValueOfQuote =
+        destinationToken === ETH_SWAPS_TOKEN_ADDRESS ? ethValueOfTokens.minus(ethFee, 10) : ethValueOfTokens;
+
+      tradeFees[aggregator] = {
+        ethFee: ethFee.toString(10),
+        ethValueOfTokens: ethValueOfTokens.toString(10),
+        overallValueOfQuote: overallValueOfQuote.toString(10),
+        metaMaskFeeInEth: metaMaskFeeInTokens.times(conversionRate).toString(10),
+      };
+
+      if (overallValueOfQuote.gt(overallValueOfBestQuoteForSorting)) {
         topAggId = aggregator;
-        ethTradeValueOfBestQuote = ethValueOfTrade;
-        ethFeeForBestQuote = ethFee;
+        overallValueOfBestQuoteForSorting = overallValueOfQuote;
       }
     });
 
-    return {
-      bestQuote: { topAggId, ethTradeValueOfBestQuote, ethFeeForBestQuote },
-      values: { allEthTradeValues, allEthFees },
-    };
+    return { topAggId, tradeFees };
   }
 
   /**
@@ -167,19 +172,32 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    * @param values - Swaps ETH values, all quotes fees and all quotes trade values
    * @returns - Promise resolving to an object containing best aggregator id and respective savings
    */
-  private async calculateSavings(quote: SwapsQuote, values: SwapsAllValues): Promise<SwapsQuoteSavings> {
+  private async calculateSavings(
+    quote: SwapsTrade,
+    tradeFees: { [key: string]: TradeFees },
+  ): Promise<SwapsQuoteSavings> {
+    const {
+      ethFee: medianEthFee,
+      metaMaskFeeInEth: medianMetaMaskFee,
+      ethValueOfTokens: medianEthValueOfTokens,
+    } = getMedianEthValueQuote(Object.values(tradeFees));
+
+    const bestTradeFee = tradeFees[quote.aggregator];
     // Performance savings are calculated as:
-    //   valueForBestTrade - medianValueOfAllTrades
-    const performance = quote.ethTradeValueOfBestQuote.minus(getMedian(values.allEthTradeValues), 10);
+    //   (ethValueOfTokens for the best trade) - (ethValueOfTokens for the media trade)
+    const performance = new BigNumber(bestTradeFee.ethValueOfTokens, 10).minus(medianEthValueOfTokens, 10);
 
-    // Performance savings are calculated as:
-    //   medianFeeOfAllTrades - feeForBestTrade
-    const fee = getMedian(values.allEthFees).minus(quote.ethFeeForBestQuote, 10);
+    // Fee savings are calculated as:
+    //   (fee for the median trade) - (fee for the best trade)
+    const fee = new BigNumber(medianEthFee).minus(bestTradeFee.ethFee, 10);
 
-    // Total savings are the sum of performance and fee savings
-    const total = performance.plus(fee, 10);
+    const metaMaskFee = bestTradeFee.metaMaskFeeInEth;
 
-    return { performance, total, fee };
+    // Total savings are calculated as:
+    //   performance savings + fee savings - metamask fee
+    const total = performance.plus(fee).minus(metaMaskFee);
+
+    return { performance, total, fee, medianMetaMaskFee: new BigNumber(medianMetaMaskFee) };
   }
 
   /**
@@ -198,10 +216,10 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       return null;
     }
 
-    const { bestQuote, values } = await this.getBestQuoteAndEthValues(quotes, customGasPrice);
-    const savings = await this.calculateSavings(bestQuote, values);
+    const { topAggId, tradeFees } = await this.getBestQuoteAndEthValues(quotes, customGasPrice);
+    const savings = await this.calculateSavings(quotes[topAggId], tradeFees);
 
-    return { ...bestQuote, savings };
+    return { ...quotes[topAggId], topAggId, savings };
   }
 
   /**
@@ -446,6 +464,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     } catch (e) {
       const error = Object.values(SwapsError).includes(e) ? e : SwapsError.ERROR_FETCHING_QUOTES;
       this.stopPollingWithError(error);
+      this.stopPollingAndResetState();
     }
   }
 

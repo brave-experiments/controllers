@@ -25,17 +25,16 @@ export interface SwapsQuoteSavings {
   total: BigNumber;
   performance: BigNumber;
   fee: BigNumber;
+  medianMetaMaskFee: BigNumber;
 }
 
 export interface SwapsQuote {
   topAggId: string;
-  ethTradeValueOfBestQuote: BigNumber;
-  ethFeeForBestQuote: BigNumber;
   isBest?: boolean;
   sourceTokenInfo?: string;
   destinationTokenInfo?: SwapsToken;
   gasEstimateWithRefund?: BigNumber;
-  gasEstimate?: number;
+  gasEstimate?: string;
   savings?: SwapsQuoteSavings;
 }
 
@@ -109,4 +108,11 @@ export interface SwapsTrade {
   gasEstimate?: string;
   maxNetworkFee: null | number;
   estimatedNetworkFee?: number;
+}
+
+export interface TradeFees {
+  ethFee: string;
+  ethValueOfTokens: string;
+  overallValueOfQuote: string;
+  metaMaskFeeInEth: string;
 }
