@@ -262,7 +262,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         from: tradeTxParams.from,
         to: tradeTxParams.to,
         value: tradeTxParams.value,
-        gas: MAX_GAS_LIMIT.toString(16),
+        gas: tradeTxParams.gas,
       };
       try {
         const gas: { gas: string | null } = (await Promise.race([
