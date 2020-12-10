@@ -97,7 +97,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     const usedGasPrice = customGasPrice || (await this.getGasPrice());
 
     const { destinationTokenInfo, destinationTokenConversionRate } = this.state.fetchParams.metaData;
-
     Object.values(quotes).forEach((quote: SwapsTrade) => {
       const {
         aggregator,
@@ -116,7 +115,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       const tradeGasLimit = gasEstimate
         ? new BigNumber(gasEstimate, 16)
         : new BigNumber(averageGas || MAX_GAS_LIMIT, 10);
-      const tradeMaxGasLimit = new BigNumber(maxGas, 16);
+      const tradeMaxGasLimit = new BigNumber(maxGas, 10);
 
       // + approval gas if required
       const totalGasLimit = tradeGasLimit.plus(this.state.approvalTransaction?.gas || '0x0', 16);
@@ -154,13 +153,13 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       // the more tokens the better
       const overallValueOfQuote =
         destinationToken === ETH_SWAPS_TOKEN_ADDRESS ? ethValueOfTokens.minus(ethFee, 10) : ethValueOfTokens;
-
       tradeFees[aggregator] = {
-        ethFee: ethFee.toString(10),
-        maxEthFee: maxEthFee.toString(10),
-        ethValueOfTokens: ethValueOfTokens.toString(10),
-        overallValueOfQuote: overallValueOfQuote.toString(10),
-        metaMaskFeeInEth: metaMaskFeeInTokens.times(conversionRate).toString(10),
+        aggregator,
+        ethFee: ethFee.toFixed(18),
+        maxEthFee: maxEthFee.toFixed(18),
+        ethValueOfTokens: ethValueOfTokens.toFixed(18),
+        overallValueOfQuote: overallValueOfQuote.toFixed(18),
+        metaMaskFeeInEth: metaMaskFeeInTokens.times(conversionRate).toFixed(18),
       };
 
       if (overallValueOfQuote.gt(overallValueOfBestQuoteForSorting)) {

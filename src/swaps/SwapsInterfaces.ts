@@ -111,6 +111,7 @@ export interface SwapsTrade {
 }
 
 export interface TradeFees {
+  aggregator: string;
   ethFee: string;
   maxEthFee: string;
   ethValueOfTokens: string;
