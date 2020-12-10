@@ -102,6 +102,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       const {
         aggregator,
         averageGas,
+        maxGas,
         destinationAmount = 0,
         destinationToken,
         sourceAmount,
@@ -115,10 +116,13 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       const tradeGasLimit = gasEstimate
         ? new BigNumber(gasEstimate, 16)
         : new BigNumber(averageGas || MAX_GAS_LIMIT, 10);
+      const tradeMaxGasLimit = new BigNumber(maxGas, 16);
 
       // + approval gas if required
       const totalGasLimit = tradeGasLimit.plus(this.state.approvalTransaction?.gas || '0x0', 16);
+      const maxTotalGasLimit = tradeMaxGasLimit.plus(this.state.approvalTransaction?.gas || '0x0', 16);
       const totalGasInWei = totalGasLimit.times(usedGasPrice, 10).times(1000000000);
+      const maxTotalGasInWei = maxTotalGasLimit.times(usedGasPrice, 10).times(1000000000);
 
       // totalGas + trade value
       // trade.value is a sum of different values depending on the transaction.
@@ -126,10 +130,13 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       // addition, if the source asset is ETH, trade.value includes the amount
       // of swapped ETH.
       const totalInWei = totalGasInWei.plus(trade.value, 16);
+      const maxTotalInWei = maxTotalGasInWei.plus(trade.value, 16);
 
       // if value in trade, ETH fee will be the gas, if not it will be the total wei
       const weiFee = sourceToken === ETH_SWAPS_TOKEN_ADDRESS ? totalInWei.minus(sourceAmount, 10) : totalInWei; // sourceAmount is in wei : totalInWei;
+      const maxWeiFee = sourceToken === ETH_SWAPS_TOKEN_ADDRESS ? maxTotalInWei.minus(sourceAmount, 10) : maxTotalInWei; // sourceAmount is in wei : totalInWei;
       const ethFee = calcTokenAmount(weiFee, 18);
+      const maxEthFee = calcTokenAmount(maxWeiFee, 18);
       const decimalAdjustedDestinationAmount = calcTokenAmount(destinationAmount, destinationTokenInfo.decimals);
 
       // fees
@@ -150,6 +157,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
       tradeFees[aggregator] = {
         ethFee: ethFee.toString(10),
+        maxEthFee: maxEthFee.toString(10),
         ethValueOfTokens: ethValueOfTokens.toString(10),
         overallValueOfQuote: overallValueOfQuote.toString(10),
         metaMaskFeeInEth: metaMaskFeeInTokens.times(conversionRate).toString(10),

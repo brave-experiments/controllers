@@ -112,6 +112,7 @@ export interface SwapsTrade {
 
 export interface TradeFees {
   ethFee: string;
+  maxEthFee: string;
   ethValueOfTokens: string;
   overallValueOfQuote: string;
   metaMaskFeeInEth: string;
