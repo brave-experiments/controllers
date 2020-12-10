@@ -12,6 +12,7 @@ import {
 } from './SwapsInterfaces';
 
 export const ETH_SWAPS_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
+const GAS_PRICES_API = `https://api.metaswap.codefi.network/gasPrices`;
 
 export const ETH_SWAPS_TOKEN_OBJECT: SwapsToken = {
   symbol: 'ETH',
@@ -153,6 +154,17 @@ export async function fetchTokenPrice(address: string): Promise<string> {
     method: 'GET',
   });
   return prices && prices[address]?.eth;
+}
+
+export async function fetchGasPrices(): Promise<{
+  SafeGasPrice: string;
+  ProposeGasPrice: string;
+  FastGasPrice: string;
+}> {
+  const prices = await handleFetch(GAS_PRICES_API, {
+    method: 'GET',
+  });
+  return prices;
 }
 
 export function calculateGasEstimateWithRefund(

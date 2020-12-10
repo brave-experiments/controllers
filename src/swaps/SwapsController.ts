@@ -1,7 +1,6 @@
 import BigNumber from 'bignumber.js';
-import { addHexPrefix } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { calcTokenAmount, estimateGas, query } from '../util';
+import { calcTokenAmount, estimateGas } from '../util';
 import { Transaction } from '../transaction/TransactionController';
 import {
   DEFAULT_ERC20_APPROVE_GAS,
@@ -10,9 +9,8 @@ import {
   fetchTradesInfo,
   SWAPS_CONTRACT_ADDRESS,
   SwapsError,
-  calculateMaxNetworkFee,
-  calculateEstimatedNetworkFee,
   getMedianEthValueQuote,
+  fetchGasPrices,
 } from './SwapsUtil';
 import {
   SwapsTrade,
@@ -53,6 +51,7 @@ export interface SwapsState extends BaseState {
   isInFetch: boolean;
   pollingCyclesLeft: number;
   approvalTransaction: Transaction | null;
+  tradeFees: { [key: string]: TradeFees } | null;
 }
 
 const QUOTE_POLLING_INTERVAL = 50 * 1000;
@@ -76,8 +75,8 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    * @returns - Promise resolving to the current gas price
    */
   private async getGasPrice(): Promise<string> {
-    const gasPrice = await query('gasPrice', this.ethQuery);
-    return gasPrice;
+    const { ProposeGasPrice } = await fetchGasPrices();
+    return ProposeGasPrice;
   }
 
   /**
@@ -119,7 +118,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
       // + approval gas if required
       const totalGasLimit = tradeGasLimit.plus(this.state.approvalTransaction?.gas || '0x0', 16);
-      const totalGasInWei = totalGasLimit.times(addHexPrefix(usedGasPrice), 10);
+      const totalGasInWei = totalGasLimit.times(usedGasPrice, 10).times(1000000000);
 
       // totalGas + trade value
       // trade.value is a sum of different values depending on the transaction.
@@ -210,16 +209,15 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
   private async findBestQuoteAndCalculateSavings(
     quotes: { [key: string]: SwapsTrade },
     customGasPrice?: string,
-  ): Promise<SwapsQuote | null> {
+  ): Promise<{ bestQuote: SwapsQuote | null; tradeFees: { [key: string]: TradeFees } | null }> {
     const numQuotes = Object.keys(quotes).length;
     if (!numQuotes) {
-      return null;
+      return { bestQuote: null, tradeFees: null };
     }
-
     const { topAggId, tradeFees } = await this.getBestQuoteAndEthValues(quotes, customGasPrice);
     const savings = await this.calculateSavings(quotes[topAggId], tradeFees);
 
-    return { ...quotes[topAggId], topAggId, savings };
+    return { bestQuote: { ...quotes[topAggId], topAggId, savings }, tradeFees };
   }
 
   /**
@@ -256,13 +254,12 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       }, 5000);
     });
 
-    return new Promise(async (resolve, reject) => {
+    return new Promise(async (resolve) => {
       const tradeTxParamsForGasEstimate = {
         data: tradeTxParams.data,
         from: tradeTxParams.from,
         to: tradeTxParams.to,
         value: tradeTxParams.value,
-        gas: tradeTxParams.gas,
       };
       try {
         const gas: { gas: string | null } = (await Promise.race([
@@ -271,7 +268,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         ])) as { gas: string | null };
         resolve(gas);
       } catch (e) {
-        reject(e);
+        resolve({ gas: null });
       }
     });
   }
@@ -308,6 +305,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     };
     this.defaultState = {
       quotes: {},
+      tradeFees: {},
       fetchParams: {
         slippage: 0,
         sourceToken: '',
@@ -368,10 +366,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     }
   }
 
-  async getAllQuotesWithGasEstimates(
-    trades: { [key: string]: SwapsTrade },
-    approvalGas: string | null,
-  ): Promise<{ [key: string]: SwapsTrade }> {
+  async getAllQuotesWithGasEstimates(trades: { [key: string]: SwapsTrade }): Promise<{ [key: string]: SwapsTrade }> {
     const quoteGasData = await Promise.all(
       Object.values(trades).map((trade) => {
         return new Promise<{ gas: string | null; aggId: string }>(async (resolve, reject) => {
@@ -390,20 +385,10 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
     const newQuotes: { [key: string]: SwapsTrade } = {};
     quoteGasData.forEach(({ gas, aggId }) => {
-      if (gas) {
-        newQuotes[aggId] = {
-          ...trades[aggId],
-          gasEstimate: gas,
-          maxNetworkFee: calculateMaxNetworkFee(approvalGas, gas, trades[aggId]?.maxGas),
-          estimatedNetworkFee: calculateEstimatedNetworkFee(
-            approvalGas,
-            gas,
-            trades[aggId]?.maxGas,
-            trades[aggId]?.estimatedRefund,
-            trades[aggId]?.averageGas,
-          ),
-        };
-      }
+      newQuotes[aggId] = {
+        ...trades[aggId],
+        gasEstimate: gas,
+      };
     });
     return newQuotes;
   }
@@ -446,8 +431,8 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
           };
         }
       }
-      apiTrades = await this.getAllQuotesWithGasEstimates(apiTrades, approvalTransaction?.gas || null);
-      const bestQuote: SwapsQuote | null = await this.findBestQuoteAndCalculateSavings(apiTrades, customGasPrice);
+      apiTrades = await this.getAllQuotesWithGasEstimates(apiTrades);
+      const { bestQuote, tradeFees } = await this.findBestQuoteAndCalculateSavings(apiTrades, customGasPrice);
       const topAggId = bestQuote?.topAggId;
       if (topAggId) {
         apiTrades[topAggId] = { ...apiTrades[topAggId], savings: bestQuote?.savings };
@@ -460,6 +445,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
           approvalTransaction,
           topAggId,
           isInFetch: false,
+          tradeFees,
         });
     } catch (e) {
       const error = Object.values(SwapsError).includes(e) ? e : SwapsError.ERROR_FETCHING_QUOTES;
