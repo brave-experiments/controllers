@@ -11,6 +11,7 @@ import {
   SwapsError,
   getMedianEthValueQuote,
   fetchGasPrices,
+  calculateGasEstimateWithRefund,
 } from './SwapsUtil';
 import {
   SwapsTrade,
@@ -107,14 +108,15 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         sourceAmount,
         sourceToken,
         trade,
-        gasEstimate,
+        gasEstimateWithRefund,
         fee: metaMaskFee,
       } = quote;
 
       // trade gas
-      const tradeGasLimit = gasEstimate
-        ? new BigNumber(gasEstimate, 16)
-        : new BigNumber(averageGas || MAX_GAS_LIMIT, 10);
+      const tradeGasLimit =
+        gasEstimateWithRefund && gasEstimateWithRefund !== 0
+          ? new BigNumber(gasEstimateWithRefund)
+          : new BigNumber(averageGas || MAX_GAS_LIMIT, 10);
       const tradeMaxGasLimit = new BigNumber(maxGas, 10);
 
       // + approval gas if required
@@ -394,7 +396,11 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     quoteGasData.forEach(({ gas, aggId }) => {
       newQuotes[aggId] = {
         ...trades[aggId],
-        gasEstimate: gas,
+        gasEstimateWithRefund: calculateGasEstimateWithRefund(
+          trades[aggId].maxGas || MAX_GAS_LIMIT,
+          trades[aggId].estimatedRefund || 0,
+          gas || '0',
+        ),
       };
     });
     return newQuotes;

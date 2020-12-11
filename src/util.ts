@@ -521,7 +521,7 @@ export async function query(method: string, ethQuery: any, args: any[] = []): Pr
 export async function estimateGas(transaction: Transaction, ethQuery: any) {
   const estimatedTransaction = { ...transaction };
   const { value, data } = estimatedTransaction;
-  const { gasLimit } = await query('getBlockByNumber', 'latest', ['latest', false]);
+  const { gasLimit } = await query('getBlockByNumber', ethQuery, ['latest', false]);
   estimatedTransaction.data = !data ? data : /* istanbul ignore next */ addHexPrefix(data);
   // 3. If this is a contract address, safely estimate gas using RPC
   estimatedTransaction.value = typeof value === 'undefined' ? '0x0' : /* istanbul ignore next */ value;

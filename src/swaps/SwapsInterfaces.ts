@@ -33,7 +33,7 @@ export interface SwapsQuote {
   isBest?: boolean;
   sourceTokenInfo?: string;
   destinationTokenInfo?: SwapsToken;
-  gasEstimateWithRefund?: BigNumber;
+  gasEstimateWithRefund: number | null;
   gasEstimate: string | null;
   savings?: SwapsQuoteSavings;
 }
@@ -106,6 +106,7 @@ export interface SwapsTrade {
   gasMultiplier?: number;
   savings?: SwapsQuoteSavings;
   gasEstimate: string | null;
+  gasEstimateWithRefund: number | null;
   maxNetworkFee: null | number;
   estimatedNetworkFee?: number;
 }

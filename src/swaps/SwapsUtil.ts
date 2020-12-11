@@ -24,7 +24,7 @@ export const ETH_SWAPS_TOKEN_OBJECT: SwapsToken = {
 export const DEFAULT_ERC20_APPROVE_GAS = '0x1d4c0';
 
 // The MAX_GAS_LIMIT is a number that is higher than the maximum gas costs we have observed on any aggregator
-const MAX_GAS_LIMIT = 2500000;
+// const MAX_GAS_LIMIT = 2500000;
 
 export const SWAPS_CONTRACT_ADDRESS = '0x881d40237659c251811cec9c364ef91dc08d300c';
 
@@ -167,15 +167,11 @@ export async function fetchGasPrices(): Promise<{
   return prices;
 }
 
-export function calculateGasEstimateWithRefund(
-  maxGas = MAX_GAS_LIMIT,
-  estimatedRefund = 0,
-  estimatedGas = 0,
-): BigNumber {
+export function calculateGasEstimateWithRefund(maxGas: number, estimatedRefund: number, estimatedGas: string): number {
   const maxGasMinusRefund = new BigNumber(maxGas, 10).minus(estimatedRefund);
   const estimatedGasBN = new BigNumber(estimatedGas);
   const gasEstimateWithRefund = maxGasMinusRefund.lt(estimatedGasBN) ? maxGasMinusRefund : estimatedGasBN;
-  return gasEstimateWithRefund;
+  return gasEstimateWithRefund.toNumber();
 }
 
 export function calculateMaxNetworkFee(approvalGas: string | null, estimatedGas: string, maxGas: number): number {
@@ -185,18 +181,18 @@ export function calculateMaxNetworkFee(approvalGas: string | null, estimatedGas:
   return Math.max(maxGas, parseInt(estimatedGas, 16));
 }
 
-export function calculateEstimatedNetworkFee(
-  approvalGas: string | null,
-  estimatedGas: string,
-  maxGas: number,
-  estimatedRefund: number,
-  averageGas: number,
-): number {
-  if (approvalGas) {
-    return parseInt(approvalGas, 16) + averageGas;
-  }
-  return calculateGasEstimateWithRefund(maxGas, estimatedRefund, parseInt(estimatedGas, 16)).toNumber();
-}
+// export function calculateEstimatedNetworkFee(
+//   approvalGas: string | null,
+//   estimatedGas: string,
+//   maxGas: number,
+//   estimatedRefund: number,
+//   averageGas: number,
+// ): string {
+//   if (approvalGas) {
+//     return parseInt(approvalGas, 16) + averageGas;
+//   }
+//   return calculateGasEstimateWithRefund(maxGas, estimatedRefund, parseInt(estimatedGas, 16));
+// }
 
 /**
  * Calculates the median of a sample of BigNumber values.
