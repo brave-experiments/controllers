@@ -108,6 +108,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         sourceAmount,
         sourceToken,
         trade,
+        gasEstimate,
         gasEstimateWithRefund,
         fee: metaMaskFee,
       } = quote;
@@ -117,11 +118,14 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         gasEstimateWithRefund && gasEstimateWithRefund !== 0
           ? new BigNumber(gasEstimateWithRefund)
           : new BigNumber(averageGas || MAX_GAS_LIMIT, 10);
-      const tradeMaxGasLimit = new BigNumber(maxGas, 10);
+      const calculatedMaxGasLimit = new BigNumber(gasEstimate || averageGas).times(1.4, 10);
+      const tradeMaxGasLimit =
+        calculatedMaxGasLimit.toNumber() > maxGas ? calculatedMaxGasLimit : new BigNumber(maxGas);
 
       // + approval gas if required
-      const totalGasLimit = tradeGasLimit.plus(this.state.approvalTransaction?.gas || '0x0', 16);
-      const maxTotalGasLimit = tradeMaxGasLimit.plus(this.state.approvalTransaction?.gas || '0x0', 16);
+      const approvalGas = this.state.approvalTransaction?.gas || '0x0';
+      const totalGasLimit = tradeGasLimit.plus(approvalGas, 16);
+      const maxTotalGasLimit = tradeMaxGasLimit.plus(approvalGas, 16);
       const totalGasInWei = totalGasLimit.times(usedGasPrice, 10).times(1000000000);
       const maxTotalGasInWei = maxTotalGasLimit.times(usedGasPrice, 10).times(1000000000);
 
@@ -396,11 +400,12 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     quoteGasData.forEach(({ gas, aggId }) => {
       newQuotes[aggId] = {
         ...trades[aggId],
+        gasEstimate: gas,
         gasEstimateWithRefund: calculateGasEstimateWithRefund(
-          trades[aggId].maxGas || MAX_GAS_LIMIT,
-          trades[aggId].estimatedRefund || 0,
-          gas || '0',
-        ),
+          trades[aggId].maxGas,
+          trades[aggId].estimatedRefund,
+          gas,
+        ).toNumber(),
       };
     });
     return newQuotes;
