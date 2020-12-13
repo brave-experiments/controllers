@@ -7,7 +7,7 @@ import {
   APIType,
   Quote,
   APIFetchQuotesParams,
-  QuoteFees,
+  QuoteValues,
 } from './SwapsInterfaces';
 
 export const ETH_SWAPS_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -209,7 +209,7 @@ export function getMedian(values: BigNumber[]) {
  * @param {Array} quotes - A sample of quote objects with overallValueOfQuote, ethFee, metaMaskFeeInEth, and ethValueOfTokens properties
  * @returns {Object} An object with the ethValueOfTokens, ethFee, and metaMaskFeeInEth of the quote with the median overallValueOfQuote
  */
-export function getMedianEthValueQuote(_quotes: QuoteFees[]) {
+export function getMedianEthValueQuote(_quotes: QuoteValues[]) {
   if (!Array.isArray(_quotes) || _quotes.length === 0) {
     throw new Error('Expected non-empty array param.');
   }
@@ -274,7 +274,7 @@ export function getMedianEthValueQuote(_quotes: QuoteFees[]) {
  * @returns {Object} An object with the arithmetic mean each of the ethFee, metaMaskFeeInEth and ethValueOfTokens of
  * the passed quote objects
  */
-function meansOfQuotesFeesAndValue(quotes: QuoteFees[]) {
+function meansOfQuotesFeesAndValue(quotes: QuoteValues[]) {
   const feeAndValueSumsAsBigNumbers = quotes.reduce(
     (feeAndValueSums, quote) => ({
       ethFee: feeAndValueSums.ethFee.plus(quote.ethFee, 10),

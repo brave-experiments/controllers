@@ -146,9 +146,9 @@ export interface Quote {
 }
 
 /**
- * Trade fees information for one aggregator
+ * Fees and values information for an aggregator
  *
- * @interface QuoteFees
+ * @interface QuoteValues
  *
  * @aggregator Aggregator id
  * @ethFee Fee in ETH
@@ -157,7 +157,7 @@ export interface Quote {
  * @overallValueOfQuote
  * @metaMaskFeeInEth MetaMask fee in ETH
  */
-export interface QuoteFees {
+export interface QuoteValues {
   aggregator: string;
   ethFee: string;
   maxEthFee: string;
