@@ -5,13 +5,12 @@ import {
   SwapsAsset,
   SwapsToken,
   APIType,
-  SwapsTrade,
+  Quote,
   APIFetchQuotesParams,
-  TradeFees,
+  QuoteFees,
 } from './SwapsInterfaces';
 
 export const ETH_SWAPS_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
-const GAS_PRICES_API = `https://api.metaswap.codefi.network/gasPrices`;
 
 export const ETH_SWAPS_TOKEN_OBJECT: SwapsToken = {
   symbol: 'ETH',
@@ -50,6 +49,8 @@ export const getBaseApiURL = function (type: APIType): string {
       return 'https://api.metaswap.codefi.network/featureFlag';
     case APIType.AGGREGATOR_METADATA:
       return 'https://api.metaswap.codefi.network/aggregatorMetadata';
+    case APIType.GAS_PRICES:
+      return 'https://api.metaswap.codefi.network/gasPrices';
     default:
       throw new Error('getBaseApiURL requires an api call type');
   }
@@ -62,7 +63,7 @@ export async function fetchTradesInfo({
   destinationToken,
   walletAddress,
   exchangeList,
-}: APIFetchQuotesParams): Promise<{ [key: string]: SwapsTrade }> {
+}: APIFetchQuotesParams): Promise<{ [key: string]: Quote }> {
   const urlParams: APIFetchQuotesParams = {
     destinationToken,
     sourceToken,
@@ -78,8 +79,8 @@ export async function fetchTradesInfo({
 
   const tradeURL = `${getBaseApiURL(APIType.TRADES)}?${new URLSearchParams(urlParams as Record<any, any>).toString()}`;
 
-  const tradesResponse = (await timeoutFetch(tradeURL, { method: 'GET' }, 15000)) as SwapsTrade[];
-  const newQuotes = tradesResponse.reduce((aggIdTradeMap: { [key: string]: SwapsTrade }, quote: SwapsTrade) => {
+  const tradesResponse = (await timeoutFetch(tradeURL, { method: 'GET' }, 15000)) as Quote[];
+  const newQuotes = tradesResponse.reduce((aggIdTradeMap: { [key: string]: Quote }, quote: Quote) => {
     if (quote.trade && !quote.error) {
       const constructedTrade = constructTxParams({
         to: quote.trade.to,
@@ -159,7 +160,7 @@ export async function fetchGasPrices(): Promise<{
   ProposeGasPrice: string;
   FastGasPrice: string;
 }> {
-  const prices = await handleFetch(GAS_PRICES_API, {
+  const prices = await handleFetch(getBaseApiURL(APIType.GAS_PRICES), {
     method: 'GET',
   });
   return prices;
@@ -175,26 +176,6 @@ export function calculateGasEstimateWithRefund(
   const gasEstimateWithRefund = maxGasMinusRefund.lt(estimatedGasBN) ? maxGasMinusRefund : estimatedGasBN;
   return gasEstimateWithRefund;
 }
-
-// export function calculateMaxNetworkFee(approvalGas: string | null, estimatedGas: string, maxGas: number): number {
-//   if (approvalGas) {
-//     return parseInt(approvalGas, 16) + maxGas;
-//   }
-//   return Math.max(maxGas, parseInt(estimatedGas, 16));
-// }
-
-// export function calculateEstimatedNetworkFee(
-//   approvalGas: string | null,
-//   estimatedGas: string,
-//   maxGas: number,
-//   estimatedRefund: number,
-//   averageGas: number,
-// ): string {
-//   if (approvalGas) {
-//     return parseInt(approvalGas, 16) + averageGas;
-//   }
-//   return calculateGasEstimateWithRefund(maxGas, estimatedRefund, parseInt(estimatedGas, 16));
-// }
 
 /**
  * Calculates the median of a sample of BigNumber values.
@@ -228,7 +209,7 @@ export function getMedian(values: BigNumber[]) {
  * @param {Array} quotes - A sample of quote objects with overallValueOfQuote, ethFee, metaMaskFeeInEth, and ethValueOfTokens properties
  * @returns {Object} An object with the ethValueOfTokens, ethFee, and metaMaskFeeInEth of the quote with the median overallValueOfQuote
  */
-export function getMedianEthValueQuote(_quotes: TradeFees[]) {
+export function getMedianEthValueQuote(_quotes: QuoteFees[]) {
   if (!Array.isArray(_quotes) || _quotes.length === 0) {
     throw new Error('Expected non-empty array param.');
   }
@@ -293,7 +274,7 @@ export function getMedianEthValueQuote(_quotes: TradeFees[]) {
  * @returns {Object} An object with the arithmetic mean each of the ethFee, metaMaskFeeInEth and ethValueOfTokens of
  * the passed quote objects
  */
-function meansOfQuotesFeesAndValue(quotes: TradeFees[]) {
+function meansOfQuotesFeesAndValue(quotes: QuoteFees[]) {
   const feeAndValueSumsAsBigNumbers = quotes.reduce(
     (feeAndValueSums, quote) => ({
       ethFee: feeAndValueSums.ethFee.plus(quote.ethFee, 10),

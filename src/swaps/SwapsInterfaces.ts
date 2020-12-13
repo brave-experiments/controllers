@@ -7,6 +7,7 @@ export enum APIType {
   TOP_ASSETS = 'TOP_ASSETS',
   FEATURE_FLAG = 'FEATURE_FLAG',
   AGGREGATOR_METADATA = 'AGGREGATOR_METADATA',
+  GAS_PRICES = 'GAS_PRICES',
 }
 
 export interface SwapsAsset {
@@ -77,16 +78,16 @@ export interface APIAggregatorMetadata {
   icon: string;
 }
 
-interface TradeTransaction extends Transaction {
+interface QuoteTransaction extends Transaction {
   value: string;
 }
 
 /**
  * Savings of a quote
  *
- * @interface SwapsQuoteSavings
+ * @interface QuoteSavings
  */
-export interface SwapsQuoteSavings {
+export interface QuoteSavings {
   total: BigNumber;
   performance: BigNumber;
   fee: BigNumber;
@@ -94,9 +95,9 @@ export interface SwapsQuoteSavings {
 }
 
 /**
- * Trade data structure coming from API
+ * Trade data structure coming from API, together with savings and gas estimations.
  *
- * @interface SwapsTrade
+ * @interface Quote
  *
  * @trade The ethereum transaction data for the swap
  * @approvalNeeded Ethereum transaction to complete a ERC20 approval, if needed
@@ -114,9 +115,12 @@ export interface SwapsQuoteSavings {
  * @aggregator Aggregator id
  * @aggType Aggregator type
  * @priceSlippage Price slippage information object
+ * @savings Estimation of savings
+ * @gasEstimate Estimation of gas
+ * @gasEstimateWithRefund Estimation of gas with refund
  */
-export interface SwapsTrade {
-  trade: TradeTransaction;
+export interface Quote {
+  trade: QuoteTransaction;
   approvalNeeded: null | {
     data: string;
     to: string;
@@ -136,17 +140,15 @@ export interface SwapsTrade {
   aggType: string;
   fee: number;
   gasMultiplier: number;
-  savings: SwapsQuoteSavings;
+  savings: QuoteSavings | null;
   gasEstimate: string | null;
   gasEstimateWithRefund: number | null;
-  maxNetworkFee: null | number;
-  estimatedNetworkFee?: number;
 }
 
 /**
  * Trade fees information for one aggregator
  *
- * @interface TradeFees
+ * @interface QuoteFees
  *
  * @aggregator Aggregator id
  * @ethFee Fee in ETH
@@ -155,7 +157,7 @@ export interface SwapsTrade {
  * @overallValueOfQuote
  * @metaMaskFeeInEth MetaMask fee in ETH
  */
-export interface TradeFees {
+export interface QuoteFees {
   aggregator: string;
   ethFee: string;
   maxEthFee: string;
