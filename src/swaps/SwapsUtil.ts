@@ -4,7 +4,6 @@ import {
   APIAggregatorMetadata,
   SwapsAsset,
   SwapsToken,
-  APITradeRequest,
   APIType,
   SwapsTrade,
   APIFetchQuotesParams,
@@ -61,16 +60,16 @@ export async function fetchTradesInfo({
   sourceToken,
   sourceAmount,
   destinationToken,
-  fromAddress,
+  walletAddress,
   exchangeList,
 }: APIFetchQuotesParams): Promise<{ [key: string]: SwapsTrade }> {
-  const urlParams: APITradeRequest = {
+  const urlParams: APIFetchQuotesParams = {
     destinationToken,
     sourceToken,
     sourceAmount,
     slippage,
     timeout: 10000,
-    walletAddress: fromAddress,
+    walletAddress,
   };
 
   if (exchangeList) {
@@ -104,7 +103,6 @@ export async function fetchTradesInfo({
           ...quote,
           slippage,
           trade: constructedTrade,
-          approvalNeeded,
         },
       };
     }
