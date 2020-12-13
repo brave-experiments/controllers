@@ -418,9 +418,9 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     const { fetchParams, customGasPrice } = this.state;
     this.update({ isInFetch: true });
     try {
-      let apiTrades: { [key: string]: Quote } = await fetchTradesInfo(fetchParams);
+      let quotes: { [key: string]: Quote } = await fetchTradesInfo(fetchParams);
 
-      if (Object.values(apiTrades).length === 0) {
+      if (Object.values(quotes).length === 0) {
         throw new Error(SwapsError.QUOTES_NOT_AVAILABLE_ERROR);
       }
 
@@ -436,7 +436,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         const allowance = await this.getERC20Allowance(fetchParams.sourceToken, fetchParams.walletAddress);
 
         if (Number(allowance) === 0 && this.pollCount === 1) {
-          approvalTransaction = Object.values(apiTrades)[0].approvalNeeded;
+          approvalTransaction = Object.values(quotes)[0].approvalNeeded;
           if (!approvalTransaction) {
             throw new Error(SwapsError.ERROR_FETCHING_QUOTES);
           }
@@ -452,12 +452,12 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
           };
         }
       }
-      apiTrades = await this.getAllQuotesWithGasEstimates(apiTrades);
-      const { bestQuote, savings, quoteFees } = await this.findBestQuoteAndCalculateSavings(apiTrades, customGasPrice);
+      quotes = await this.getAllQuotesWithGasEstimates(quotes);
+      const { bestQuote, savings, quoteFees } = await this.findBestQuoteAndCalculateSavings(quotes, customGasPrice);
 
       this.state.isInPolling &&
         this.update({
-          quotes: apiTrades,
+          quotes,
           quotesLastFetched,
           approvalTransaction,
           topAggId: bestQuote?.aggregator,
