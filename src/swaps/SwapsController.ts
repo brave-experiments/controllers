@@ -1,4 +1,5 @@
 import BigNumber from 'bignumber.js';
+import AbortController from 'abort-controller';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import { calcTokenAmount, estimateGas } from '../util';
 import { Transaction } from '../transaction/TransactionController';
@@ -22,12 +23,14 @@ import {
   QuoteValues,
 } from './SwapsInterfaces';
 
+/** We need to abort quotes fetch if stopPollingAndResetState is called while getting quotes */
+const controller = new AbortController();
+const { signal } = controller;
+
 const { Mutex } = require('await-semaphore');
 const abiERC20 = require('human-standard-token-abi');
 const EthQuery = require('ethjs-query');
 const Web3 = require('web3');
-
-// An address that the metaswap-api recognizes as ETH, in place of the token address that ERC-20 tokens have
 
 export interface SwapsConfig extends BaseConfig {
   maxGasLimit: number;
@@ -393,7 +396,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     const { fetchParams, customGasPrice } = this.state;
     this.update({ isInFetch: true });
     try {
-      let quotes: { [key: string]: Quote } = await fetchTradesInfo(fetchParams);
+      let quotes: { [key: string]: Quote } = await fetchTradesInfo(fetchParams, signal);
 
       if (Object.values(quotes).length === 0) {
         throw new Error(SwapsError.QUOTES_NOT_AVAILABLE_ERROR);
@@ -491,6 +494,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    *
    */
   stopPollingAndResetState() {
+    controller.abort();
     this.handle && clearTimeout(this.handle);
     this.pollCount = this.config.pollCountLimit + 1;
     this.update({

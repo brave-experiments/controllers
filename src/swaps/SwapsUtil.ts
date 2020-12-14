@@ -56,14 +56,10 @@ export const getBaseApiURL = function (type: APIType): string {
   }
 };
 
-export async function fetchTradesInfo({
-  slippage,
-  sourceToken,
-  sourceAmount,
-  destinationToken,
-  walletAddress,
-  exchangeList,
-}: APIFetchQuotesParams): Promise<{ [key: string]: Quote }> {
+export async function fetchTradesInfo(
+  { slippage, sourceToken, sourceAmount, destinationToken, walletAddress, exchangeList }: APIFetchQuotesParams,
+  abortSignal: AbortSignal,
+): Promise<{ [key: string]: Quote }> {
   const urlParams: APIFetchQuotesParams = {
     destinationToken,
     sourceToken,
@@ -79,7 +75,7 @@ export async function fetchTradesInfo({
 
   const tradeURL = `${getBaseApiURL(APIType.TRADES)}?${new URLSearchParams(urlParams as Record<any, any>).toString()}`;
 
-  const tradesResponse = (await timeoutFetch(tradeURL, { method: 'GET' }, 15000)) as Quote[];
+  const tradesResponse = (await timeoutFetch(tradeURL, { method: 'GET', signal: abortSignal }, 15000)) as Quote[];
   const newQuotes = tradesResponse.reduce((aggIdTradeMap: { [key: string]: Quote }, quote: Quote) => {
     if (quote.trade && !quote.error) {
       const constructedTrade = constructTxParams({
@@ -209,12 +205,11 @@ export function getMedian(values: BigNumber[]) {
  * @param {Array} quotes - A sample of quote objects with overallValueOfQuote, ethFee, metaMaskFeeInEth, and ethValueOfTokens properties
  * @returns {Object} An object with the ethValueOfTokens, ethFee, and metaMaskFeeInEth of the quote with the median overallValueOfQuote
  */
-export function getMedianEthValueQuote(_quotes: QuoteValues[]) {
-  if (!Array.isArray(_quotes) || _quotes.length === 0) {
+
+export function getMedianEthValueQuote(quotes: QuoteValues[]) {
+  if (!Array.isArray(quotes) || quotes.length === 0) {
     throw new Error('Expected non-empty array param.');
   }
-
-  const quotes = [..._quotes];
 
   quotes.sort((quoteA, quoteB) => {
     const overallValueOfQuoteA = new BigNumber(quoteA.overallValueOfQuote, 10);
