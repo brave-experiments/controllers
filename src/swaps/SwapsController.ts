@@ -23,10 +23,6 @@ import {
   QuoteValues,
 } from './SwapsInterfaces';
 
-/** We need to abort quotes fetch if stopPollingAndResetState is called while getting quotes */
-const controller = new AbortController();
-const { signal } = controller;
-
 const { Mutex } = require('await-semaphore');
 const abiERC20 = require('human-standard-token-abi');
 const EthQuery = require('ethjs-query');
@@ -73,6 +69,8 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
   private pollCount = 0;
 
   private mutex = new Mutex();
+
+  private abortController: AbortController;
 
   /**
    * Fetch current gas price
@@ -396,6 +394,9 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     const { fetchParams, customGasPrice } = this.state;
     this.update({ isInFetch: true });
     try {
+      /** We need to abort quotes fetch if stopPollingAndResetState is called while getting quotes */
+      this.abortController = new AbortController();
+      const { signal } = this.abortController;
       let quotes: { [key: string]: Quote } = await fetchTradesInfo(fetchParams, signal);
 
       if (Object.values(quotes).length === 0) {
@@ -494,7 +495,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    *
    */
   stopPollingAndResetState() {
-    controller.abort();
+    this.abortController.abort();
     this.handle && clearTimeout(this.handle);
     this.pollCount = this.config.pollCountLimit + 1;
     this.update({
