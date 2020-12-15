@@ -70,7 +70,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
 
   private mutex = new Mutex();
 
-  private abortController: AbortController;
+  private abortController?: AbortController;
 
   /**
    * Fetch current gas price
@@ -495,7 +495,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    *
    */
   stopPollingAndResetState() {
-    this.abortController.abort();
+    this.abortController && this.abortController.abort();
     this.handle && clearTimeout(this.handle);
     this.pollCount = this.config.pollCountLimit + 1;
     this.update({
