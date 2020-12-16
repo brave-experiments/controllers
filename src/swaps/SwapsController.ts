@@ -264,10 +264,6 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
     });
   }
 
-  private stopPollingWithError(error: SwapsError) {
-    this.update({ isInPolling: false, isInFetch: false, pollingCyclesLeft: 0, errorKey: error });
-  }
-
   /**
    * Name of this controller used during composition
    */
@@ -354,7 +350,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         this.pollForNewQuotes();
       }, this.config.quotePollingInterval);
     } else {
-      this.stopPollingWithError(SwapsError.QUOTES_EXPIRED_ERROR);
+      this.stopPollingAndResetState(SwapsError.QUOTES_EXPIRED_ERROR);
     }
   }
 
@@ -447,8 +443,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
         });
     } catch (e) {
       const error = Object.values(SwapsError).includes(e) ? e : SwapsError.ERROR_FETCHING_QUOTES;
-      this.stopPollingWithError(error);
-      this.stopPollingAndResetState();
+      this.stopPollingAndResetState(error);
     }
   }
 
