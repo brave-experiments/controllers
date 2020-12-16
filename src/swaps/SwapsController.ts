@@ -494,7 +494,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    * Stops the polling process
    *
    */
-  stopPollingAndResetState() {
+  stopPollingAndResetState(error?: SwapsError) {
     this.abortController && this.abortController.abort();
     this.handle && clearTimeout(this.handle);
     this.pollCount = this.config.pollCountLimit + 1;
@@ -504,7 +504,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       isInFetch: false,
       tokensLastFetched: this.state.tokensLastFetched,
       tokens: this.state.tokens,
-      errorKey: undefined,
+      errorKey: error,
     });
   }
 }

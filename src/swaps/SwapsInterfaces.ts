@@ -27,10 +27,10 @@ export interface SwapsToken extends SwapsAsset {
  *
  * @interface APIFetchQuotesMetadata
  *
- * @sourceTokenInfo Source token information
- * @destinationTokenInfo Destination token information
- * @accountBalance Current ETH account balance
- * @destinationTokenConversionRate Current conversion rate to ETH of destination token
+ * @property sourceTokenInfo - Source token information
+ * @property destinationTokenInfo - Destination token information
+ * @property accountBalance Current - ETH account balance
+ * @property destinationTokenConversionRate - Current conversion rate to ETH of destination token
  *
  */
 export interface APIFetchQuotesMetadata {
@@ -45,14 +45,14 @@ export interface APIFetchQuotesMetadata {
  *
  * @interface APIFetchQuotesParams
  *
- * @slippage Slippage
- * @sourceToken Source token address
- * @sourceAmount Source token amount
- * @destinationToken Destination token address
- * @walletAddress Address to do the swap from
- * @exchangeList
- * @balanceError
- * @metaData Metadata needed to fetch quotes
+ * @property slippage - Slippage
+ * @property sourceToken - Source token address
+ * @property sourceAmount - Source token amount
+ * @property destinationToken - Destination token address
+ * @property walletAddress - Address to do the swap from
+ * @property exchangeList
+ * @property balanceError
+ * @property metaData - Metadata needed to fetch quotes
  *
  */
 export interface APIFetchQuotesParams {
@@ -99,25 +99,25 @@ export interface QuoteSavings {
  *
  * @interface Quote
  *
- * @trade The ethereum transaction data for the swap
- * @approvalNeeded Ethereum transaction to complete a ERC20 approval, if needed
- * @sourceAmount Amount in minimal unit to send
- * @destinationAmount Amount in minimal unit to receive
- * @error Trade error, if any
- * @sourceToken Source token address
- * @destinationToken Destination token address
- * @maxGas Maximum gas to use
- * @averageGas Average gas to use
- * @estimatedRefund Destination token address
- * @fetchTime Fetch time
- * @fee MetaMask fee
- * @gasMultiplier
- * @aggregator Aggregator id
- * @aggType Aggregator type
- * @priceSlippage Price slippage information object
- * @savings Estimation of savings
- * @gasEstimate Estimation of gas
- * @gasEstimateWithRefund Estimation of gas with refund
+ * @property trade - The ethereum transaction data for the swap
+ * @property approvalNeeded - Ethereum transaction to complete a ERC20 approval, if needed
+ * @property sourceAmount - Amount in minimal unit to send
+ * @property destinationAmount - Amount in minimal unit to receive
+ * @property error - Trade error, if any
+ * @property sourceToken - Source token address
+ * @property destinationToken - Destination token address
+ * @property maxGas - Maximum gas to use
+ * @property averageGas - Average gas to use
+ * @property estimatedRefund - Destination token address
+ * @property fetchTime - Fetch time
+ * @property fee - MetaMask fee
+ * @property gasMultiplier
+ * @property aggregator - Aggregator id
+ * @property aggType - Aggregator type
+ * @property priceSlippage - Price slippage information object
+ * @property savings - Estimation of savings
+ * @property gasEstimate - Estimation of gas
+ * @property gasEstimateWithRefund - Estimation of gas with refund
  */
 export interface Quote {
   trade: QuoteTransaction;
@@ -150,12 +150,12 @@ export interface Quote {
  *
  * @interface QuoteValues
  *
- * @aggregator Aggregator id
- * @ethFee Fee in ETH
- * @maxEthFee Maximum fee in ETH
- * @ethValueOfTokens Total value of tokens in ETH
- * @overallValueOfQuote
- * @metaMaskFeeInEth MetaMask fee in ETH
+ * @property aggregator - Aggregator id
+ * @property ethFee - Fee in ETH
+ * @property maxEthFee - Maximum fee in ETH
+ * @property ethValueOfTokens - Total value of tokens in ETH
+ * @property overallValueOfQuote
+ * @property metaMaskFeeInEth - MetaMask fee in ETH
  */
 export interface QuoteValues {
   aggregator: string;
