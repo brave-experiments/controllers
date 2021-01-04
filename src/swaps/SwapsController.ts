@@ -79,7 +79,7 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
    */
   private async getGasPrice(): Promise<string> {
     const { ProposeGasPrice } = await fetchGasPrices();
-    return ProposeGasPrice;
+    return (parseFloat(ProposeGasPrice) * 1000000000).toString(16);
   }
 
   /**
@@ -128,8 +128,8 @@ export class SwapsController extends BaseController<SwapsConfig, SwapsState> {
       const approvalGas = this.state.approvalTransaction?.gas || '0x0';
       const totalGasLimit = tradeGasLimit.plus(approvalGas, 16);
       const maxTotalGasLimit = tradeMaxGasLimit.plus(approvalGas, 16);
-      const totalGasInWei = totalGasLimit.times(usedGasPrice, 10).times(1000000000);
-      const maxTotalGasInWei = maxTotalGasLimit.times(usedGasPrice, 10).times(1000000000);
+      const totalGasInWei = totalGasLimit.times(usedGasPrice, 16);
+      const maxTotalGasInWei = maxTotalGasLimit.times(usedGasPrice, 16);
 
       // totalGas + trade value
       // trade.value is a sum of different values depending on the transaction.
